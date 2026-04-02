@@ -1,0 +1,27 @@
+# Environment
+env/
+venv/
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.sqlite3
+
+# Node
+node_modules/
+dist/
+build/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Temp
+tmp/
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
