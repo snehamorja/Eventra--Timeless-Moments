@@ -45,7 +45,7 @@ const DecorationPage = () => {
             setDecorStyles(res.data || []);
         } catch (err) {
             console.error("Error fetching decor:", err);
-            setDecorStyles(allDecorStyles);
+            setDecorStyles([]);
         } finally {
             setLoading(false);
         }
@@ -78,6 +78,7 @@ const DecorationPage = () => {
   };
 
   const getCategoryFromType = (type) => {
+    if (!type) return 'Wedding Ceremony';
     const map = {
         'Wedding': 'Grand Wedding',
         'Sangeet': 'Sangeet Night',
@@ -147,7 +148,10 @@ const DecorationPage = () => {
               const categoryName = getCategoryFromType(type);
 
               // Filter from the dynamic decorStyles
-              const options = decorStyles.filter(s => s.category === categoryName || (s.category && s.category.toLowerCase().includes(type.toLowerCase())));
+              const options = decorStyles.filter(s => 
+                  s.category === categoryName || 
+                  (s.category && type && s.category.toLowerCase().includes(type.toLowerCase()))
+              );
               const currentSelection = eventSelections[type];
 
               return (
@@ -189,7 +193,7 @@ const DecorationPage = () => {
                         <div style={{ padding: 30, background: isSelected ? '#F9F4E8' : '#fff' }}>
                           <div style={{ fontWeight: 800, fontSize: '1.3rem', marginBottom: 8 }}>{decor.name}</div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 900, color: '#C4A059', fontSize: '1.6rem' }}>₹{decor.price.toLocaleString()}</div>
+                            <div style={{ fontWeight: 900, color: '#C4A059', fontSize: '1.6rem' }}>₹{parseFloat(decor.price || 0).toLocaleString()}</div>
                             <div style={{ fontSize: '0.8rem', color: '#888', fontWeight: 600 }}>Choice Decor</div>
                           </div>
                         </div>

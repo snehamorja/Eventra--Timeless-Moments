@@ -4,6 +4,7 @@ import { FormContext } from '../contexts/FormContext';
 import Navbar from '../components/Navbar';
 import CustomAlert from '../components/CustomAlert';
 import CustomInquiryModal from '../components/CustomInquiryModal';
+import API from '../services/api';
 
 const LocalWeddingFormPage = () => {
   const navigate = useNavigate();
@@ -81,8 +82,8 @@ const LocalWeddingFormPage = () => {
   useEffect(() => {
     const fetchCeremonies = async () => {
         try {
-            const res = await fetch('http://localhost:8000/api/wedding-events/');
-            const data = await res.json();
+            const res = await API.get('/wedding-events/');
+            const data = res.data || [];
             const visible = data.filter(c => c.is_visible);
             setCeremonies(visible);
             

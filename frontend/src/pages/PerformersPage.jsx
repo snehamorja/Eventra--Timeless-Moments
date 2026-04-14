@@ -32,8 +32,7 @@ const PerformersPage = () => {
         setPerfList(res.data || []);
       } catch (err) {
         console.error("Error fetching performers:", err);
-        // Temporary fallback if API fails
-        setPerfList([...performersData, ...singersData]);
+        setPerfList([]);
       } finally {
         setLoading(false);
       }

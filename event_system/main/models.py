@@ -57,7 +57,7 @@ class Decoration(models.Model):
         ('Other', 'Other'),
     )
     name = models.CharField(max_length=100)
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Wedding')
+    category = models.CharField(max_length=50, default='Wedding')
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     image = models.TextField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
