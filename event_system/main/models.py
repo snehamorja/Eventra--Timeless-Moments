@@ -29,7 +29,7 @@ class User(AbstractUser):
         ('ADMIN', 'ADMIN'),
     )
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='USER')
-    email = models.EmailField(unique=True)
+    email = models.EmailField(unique=False)
     phone = models.CharField(max_length=20, blank=True, null=True)
     
     # Login Blocking
@@ -363,9 +363,7 @@ class WeddingEvent(models.Model):
     # Advanced Details
     approx_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     highlights = models.JSONField(default=list, blank=True) # [{icon, label, detail}]
-    schedule = models.JSONField(default=list, blank=True)   # [{day, event}]
-    rules = models.JSONField(default=list, blank=True)      # [rules]
-    faqs = models.JSONField(default=list, blank=True)        # [{question, answer}]
+    decoration_options = models.TextField(blank=True, null=True) # Description of decor options
     
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -93,26 +93,6 @@ const About = () => {
                     </div>
                 </div>
 
-                {/* Team Section */}
-                <div style={{ textAlign: 'center' }}>
-                    <h2 style={{ fontSize: '1rem', color: '#C4A059', letterSpacing: '5px', textTransform: 'uppercase', marginBottom: '60px', fontWeight: '800' }}>The Visionaries</h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '40px' }}>
-                        {[
-                            { name: "Sneha Morja", role: "Founder & Creative Principal", img: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400" },
-                            { name: "Aarav Sharma", role: "Head of Global Logistics", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=400" },
-                            { name: "Isabella Rossi", role: "Director of International Weddings", img: "https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&q=80&w=400" },
-                            { name: "Marcus Thorne", role: "Technical Production Lead", img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=400" }
-                        ].map((m, i) => (
-                            <div key={i} style={{ textAlign: 'left' }}>
-                                <div style={{ height: '400px', overflow: 'hidden', marginBottom: '20px', borderRadius: '4px' }}>
-                                    <img src={m.img} alt={m.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: '0.5s cursor' }} />
-                                </div>
-                                <h4 style={{ fontSize: '1.2rem', fontWeight: '900', margin: '0 0 5px 0' }}>{m.name}</h4>
-                                <p style={{ fontSize: '0.8rem', color: '#C4A059', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: '700' }}>{m.role}</p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
             <Footer />

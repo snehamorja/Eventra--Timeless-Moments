@@ -99,7 +99,7 @@ const SimpleAdminDashboard = () => {
     const [performerForm, setPerformerForm] = useState({ name: '', category: 'Singer', price: 0, image: '', description: '' });
     const [editingPerformer, setEditingPerformer] = useState(null);
     const [showCreateWeddingEvent, setShowCreateWeddingEvent] = useState(false);
-    const [weddingEventForm, setWeddingEventForm] = useState({ name: '', description: '', image: '', is_visible: true, approx_price: 0, highlights: '', schedule: '', rules: '', faqs: '' });
+    const [weddingEventForm, setWeddingEventForm] = useState({ name: '', description: '', image: '', approx_price: '', highlights: '', decoration_options: '', is_visible: true });
     const [editingWeddingEvent, setEditingWeddingEvent] = useState(null);
     const [inspectingBooking, setInspectingBooking] = useState(null);
     const [customAlert, setCustomAlert] = useState({ show: false, title: '', message: '', subMessage: '', mode: 'notice', onConfirm: null });
@@ -266,8 +266,8 @@ const SimpleAdminDashboard = () => {
                 api.get('/decorations/'),
                 api.get('/catering/'),
                 api.get('/performers/'),
-                api.get('/concert-bookings/'),
-                api.get('/festival-bookings/'),
+                api.get('/concert-bookings/list/'),
+                api.get('/festival-bookings/list/'),
                 api.get('/tournaments/'),
                 api.get('/sports-registrations/'),
                 api.get('/fixtures/'),
@@ -300,7 +300,7 @@ const SimpleAdminDashboard = () => {
                 api.get('/blogs/?deleted=true'), api.get('/event-inquiries/list/?deleted=true'),
                 api.get('/gallery/?deleted=true'), api.get('/decorations/?deleted=true'),
                 api.get('/catering/?deleted=true'), api.get('/performers/?deleted=true'),
-                api.get('/concert-bookings/?deleted=true'), api.get('/festival-bookings/?deleted=true'),
+                api.get('/concert-bookings/list/?deleted=true'), api.get('/festival-bookings/list/?deleted=true'),
                 api.get('/tournaments/?deleted=true'), api.get('/concerts/?deleted=true'),
                 api.get('/festivals/?deleted=true'), api.get('/sports-registrations/?deleted=true'),
             ]);
@@ -606,9 +606,8 @@ const SimpleAdminDashboard = () => {
 
     const handleWeddingEventSubmit = async () => {
         try {
-            const parseSimpleList = (str) => str ? str.split(',').map(s => s.trim()).filter(Boolean) : [];
             const parsePipeList = (str, keys) => {
-                if (!str || !str.trim() || typeof str !== 'string') return Array.isArray(str) ? str : [];
+                if (!str || !str.trim() || typeof str !== 'string') return [];
                 return str.split('\n').map(line => {
                     const parts = line.split('|').map(s => s.trim());
                     const obj = {};
@@ -619,17 +618,14 @@ const SimpleAdminDashboard = () => {
 
             const payload = {
                 ...weddingEventForm,
-                highlights: parsePipeList(weddingEventForm.highlights, ['icon', 'label', 'detail']),
-                schedule: parsePipeList(weddingEventForm.schedule, ['day', 'event']),
-                rules: parseSimpleList(weddingEventForm.rules),
-                faqs: parsePipeList(weddingEventForm.faqs, ['question', 'answer'])
+                highlights: parsePipeList(weddingEventForm.highlights, ['icon', 'label', 'detail'])
             };
 
             if (editingWeddingEvent) await api.put(`/wedding-events/${editingWeddingEvent.id}/`, payload);
             else await api.post('/wedding-events/', payload);
             setShowCreateWeddingEvent(false);
             setEditingWeddingEvent(null);
-            setWeddingEventForm({ name: '', description: '', image: '', is_visible: true, approx_price: 0, highlights: '', schedule: '', rules: '', faqs: '' });
+            setWeddingEventForm({ name: '', description: '', image: '', approx_price: '', highlights: '', decoration_options: '', is_visible: true });
             fetchAllData();
             setCustomAlert({ show: true, title: 'SUCCESS', message: 'Wedding Details updated!' });
         } catch (err) { setCustomAlert({ show: true, title: 'ERROR', message: sanitizeError(err) }); }
@@ -1465,7 +1461,7 @@ const SimpleAdminDashboard = () => {
                                         <>
                                             <tr style={{ background: '#f8fafc' }}>
                                                 <td colSpan="5" style={{ padding: '15px 25px' }}>
-                                                    <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
+                                                    <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', approx_price: '', highlights: '', decoration_options: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
                                                 </td>
                                             </tr>
                                             {weddingEvents.map(e => (
@@ -1486,11 +1482,13 @@ const SimpleAdminDashboard = () => {
                                                         <button onClick={() => { 
                                                             setEditingWeddingEvent(e); 
                                                             setWeddingEventForm({
-                                                                ...e,
-                                                                highlights: (e.highlights || []).map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n'),
-                                                                schedule: (e.schedule || []).map(s => `${s.day} | ${s.event}`).join('\n'),
-                                                                rules: (e.rules || []).join(', '),
-                                                                faqs: (e.faqs || []).map(q => `${q.question} | ${q.answer}`).join('\n')
+                                                                name: e.name,
+                                                                description: e.description,
+                                                                image: e.image,
+                                                                approx_price: e.approx_price,
+                                                                highlights: Array.isArray(e.highlights) ? e.highlights.map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n') : '',
+                                                                decoration_options: e.decoration_options || '',
+                                                                is_visible: e.is_visible
                                                             }); 
                                                             setShowCreateWeddingEvent(true); 
                                                         }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
@@ -2704,18 +2702,10 @@ const SimpleAdminDashboard = () => {
                                 <textarea style={{ ...inputStyle, minHeight: '80px' }} value={weddingEventForm.highlights} onChange={e => setWeddingEventForm({ ...weddingEventForm, highlights: e.target.value })} placeholder={'🌸 | Floral Decor | Fresh Marigolds\n🎵 | Music | Folk Singers'} />
                             </div>
                             
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div>
-                                    <label style={labelStyle}>Schedule (day | event)</label>
-                                    <textarea style={{ ...inputStyle, minHeight: '80px' }} value={weddingEventForm.schedule} onChange={e => setWeddingEventForm({ ...weddingEventForm, schedule: e.target.value })} placeholder={'Day 1 | Arrival & Welcome\nDay 2 | Main Rituals'} />
-                                </div>
-                                <div>
-                                    <label style={labelStyle}>Rules/Guidelines (comma separated)</label>
-                                    <textarea style={{ ...inputStyle, minHeight: '80px' }} value={weddingEventForm.rules} onChange={e => setWeddingEventForm({ ...weddingEventForm, rules: e.target.value })} placeholder={'Traditional Attire, No Flash Photography'} />
-                                </div>
+                             <div>
+                                <label style={labelStyle}>Decoration Options</label>
+                                <textarea style={{ ...inputStyle, minHeight: '100px' }} value={weddingEventForm.decoration_options} onChange={e => setWeddingEventForm({ ...weddingEventForm, decoration_options: e.target.value })} placeholder="Suggest decoration themes or options for this ceremony..." />
                             </div>
-                            
-                            <div><label style={labelStyle}>FAQs (question | answer)</label><textarea style={{ ...inputStyle, minHeight: '70px' }} value={weddingEventForm.faqs} onChange={e => setWeddingEventForm({ ...weddingEventForm, faqs: e.target.value })} placeholder={'Is it outdoor? | Yes, at the poolside\nCan kids attend? | Of course!'} /></div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--light, #f8fafc)', padding: '15px', borderRadius: '12px' }}>
                                 <input type="checkbox" id="ceremony_visible" checked={weddingEventForm.is_visible} onChange={e => setWeddingEventForm({ ...weddingEventForm, is_visible: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />

@@ -42,32 +42,11 @@ const RegisterPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
-
-        if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(userData.username)) {
-            setError('Username must start with a letter and contain only alphanumeric/underscore.');
-            return;
-        }
-
-        if (!userData.email.toLowerCase().endsWith('@gmail.com')) {
-            setError('Only @gmail.com email addresses are allowed.');
-            return;
-        }
-
-        if (userData.password.length < 8) {
-            setError('Password must be at least 8 characters long.');
-            return;
-        }
-
-        if (userData.password !== userData.confirmPassword) {
-            setError('Passwords do not match');
-            return;
-        }
-
         setLoading(true);
         try {
             await api.post('/register/', {
-                username: userData.username,
-                email: userData.email,
+                username: userData.username.trim(),
+                email: userData.email.trim(),
                 phone: `${userData.countryCode}${userData.phone}`,
                 password: userData.password,
                 confirm_password: userData.confirmPassword
@@ -75,7 +54,7 @@ const RegisterPage = () => {
             setCustomAlert({
                 show: true,
                 title: 'SUCCESS',
-                message: 'Registration successful! You can now access your account and complete your booking.'
+                message: 'Account created successfully! You can now log in.'
             });
 
             const pendingAction = localStorage.getItem('pendingAutoAction');
@@ -83,14 +62,14 @@ const RegisterPage = () => {
             setTimeout(() => {
                 navigate('/login', {
                     state: {
-                        prefilledUsername: userData.username,
+                        prefilledUsername: userData.username.trim(),
                         prefilledPassword: userData.password,
                         from: pendingAction === 'save_and_pay' ? '/invoice' : '/'
                     }
                 });
             }, 3000);
         } catch (err) {
-            setError(err.response?.data?.error || 'Registration failed.');
+            setError(err.response?.data?.error || 'Registration failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -174,8 +153,14 @@ const RegisterPage = () => {
                                 type="email"
                                 name="email"
                                 required
+                                multiple={false}
                                 value={userData.email}
                                 onChange={handleChange}
+                                onPaste={(e) => {
+                                    e.preventDefault();
+                                    const pasted = e.clipboardData.getData('text').split(',')[0].trim();
+                                    setUserData({ ...userData, email: pasted });
+                                }}
                                 placeholder="example@gmail.com"
                                 style={inputStyle}
                             />

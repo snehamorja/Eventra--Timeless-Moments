@@ -32,36 +32,80 @@ class RegisterView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        username = request.data.get('username')
-        email = request.data.get('email')
-        password = request.data.get('password')
-        confirm_password = request.data.get('confirm_password')
-        
+        import re
+
+        username        = (request.data.get('username') or '').strip()
+        email           = (request.data.get('email') or '').strip()
+        password        = request.data.get('password') or ''
+        confirm_password = request.data.get('confirm_password') or ''
+        phone           = (request.data.get('phone') or '').strip()
+
+        # ── 1. Username presence ──────────────────────────────────────────
+        if not username:
+            return Response({'error': 'Username is required.'}, status=400)
+
+        # ── 2. Username length ────────────────────────────────────────────
+        if len(username) < 3 or len(username) > 30:
+            return Response({'error': 'Username must be between 3 and 30 characters.'}, status=400)
+
+        # ── 3. Username format (letter-first, alphanumeric + underscore) ──
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', username):
+            return Response({'error': 'Username must start with a letter and contain only letters, numbers, or underscores.'}, status=400)
+
+        # ── 4. Username uniqueness ────────────────────────────────────────
+        if User.objects.filter(username__iexact=username).exists():
+            return Response({'error': 'This username is already taken. Please choose another.'}, status=400)
+
+        # ── 5. Email presence ─────────────────────────────────────────────
+        if not email:
+            return Response({'error': 'Email address is required.'}, status=400)
+
+        # ── 6. Single email only (no commas or spaces) ────────────────────
+        if ',' in email or ' ' in email:
+            return Response({'error': 'Only one email address is allowed. Please enter a single email.'}, status=400)
+
+        # ── 7. Valid email format ─────────────────────────────────────────
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            return Response({'error': 'Enter a valid email address.'}, status=400)
+
+        # ── 8. Gmail-only rule ────────────────────────────────────────────
+        if not email.lower().endswith('@gmail.com'):
+            return Response({'error': 'Only @gmail.com email addresses are accepted for registration.'}, status=400)
+
+        # ── 10. Password presence ─────────────────────────────────────────
+        if not password:
+            return Response({'error': 'Password is required.'}, status=400)
+
+        # ── 11. Password minimum length ───────────────────────────────────
+        if len(password) < 8:
+            return Response({'error': 'Password must be at least 8 characters long.'}, status=400)
+
+        # ── 12. Password complexity (at least one letter + one digit) ──────
+        if not re.search(r'[a-zA-Z]', password) or not re.search(r'[0-9]', password):
+            return Response({'error': 'Password must contain at least one letter and one number.'}, status=400)
+
+        # ── 13. Passwords match ───────────────────────────────────────────
         if password != confirm_password:
-            return Response({'error': 'Passwords do not match'}, status=400)
-            
-        role = request.data.get('role', 'USER').upper()
+            return Response({'error': 'Passwords do not match. Please re-enter.'}, status=400)
+
+        # ── 14. Phone validation (digits only, 7–15 chars if provided) ─────
+        if phone:
+            digits_only = re.sub(r'[+\-\s]', '', phone)
+            if not digits_only.isdigit():
+                return Response({'error': 'Phone number must contain digits only.'}, status=400)
+            if len(digits_only) < 7 or len(digits_only) > 15:
+                return Response({'error': 'Phone number must be between 7 and 15 digits.'}, status=400)
+
+        # ── Role ──────────────────────────────────────────────────────────
+        role = (request.data.get('role') or 'USER').strip().upper()
         if role not in ['USER', 'ADMIN']:
             role = 'USER'
 
-        # Admin creation may be restricted later, but for now allow bypass if they pass ADMIN
-        
-        if User.objects.filter(username=username).exists():
-            return Response({'error': 'Username already exists'}, status=400)
-        
-        # --- Gmail Validation ---
-        if not email or not email.lower().endswith('@gmail.com'):
-            return Response({'error': 'Registration requires a @gmail.com address.'}, status=400)
-
-        if User.objects.filter(email=email).exists():
-            return Response({'error': 'Email already exists'}, status=400)
-            
-        phone = request.data.get('phone', '')
-
+        # ── Create user ───────────────────────────────────────────────────
         user = User.objects.create_user(
-            username=username, 
-            email=email, 
-            password=password, 
+            username=username,
+            email=email,
+            password=password,
             role=role,
             phone=phone
         )
@@ -70,7 +114,7 @@ class RegisterView(APIView):
             user.is_superuser = True
             user.save()
 
-        # --- Send Welcome Email to the new user ---
+        # ── Send Welcome Email ─────────────────────────────────────────────
         try:
             send_mail(
                 subject='🎉 Welcome to Eventra – Your Account is Ready!',
@@ -92,7 +136,7 @@ class RegisterView(APIView):
         except Exception as e:
             print(f'Registration email failed: {e}')
 
-        return Response({'message': 'User registered successfully'}, status=201)
+        return Response({'message': 'Account created successfully! You can now log in.'}, status=201)
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
