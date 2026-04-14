@@ -99,7 +99,7 @@ const SimpleAdminDashboard = () => {
     const [performerForm, setPerformerForm] = useState({ name: '', category: 'Singer', price: 0, image: '', description: '' });
     const [editingPerformer, setEditingPerformer] = useState(null);
     const [showCreateWeddingEvent, setShowCreateWeddingEvent] = useState(false);
-    const [weddingEventForm, setWeddingEventForm] = useState({ name: '', description: '', image: '', approx_price: '', highlights: '', decoration_options: '', is_visible: true });
+    const [weddingEventForm, setWeddingEventForm] = useState({ name: '', description: '', image: '', is_visible: true });
     const [editingWeddingEvent, setEditingWeddingEvent] = useState(null);
     const [inspectingBooking, setInspectingBooking] = useState(null);
     const [customAlert, setCustomAlert] = useState({ show: false, title: '', message: '', subMessage: '', mode: 'notice', onConfirm: null });
@@ -606,26 +606,11 @@ const SimpleAdminDashboard = () => {
 
     const handleWeddingEventSubmit = async () => {
         try {
-            const parsePipeList = (str, keys) => {
-                if (!str || !str.trim() || typeof str !== 'string') return [];
-                return str.split('\n').map(line => {
-                    const parts = line.split('|').map(s => s.trim());
-                    const obj = {};
-                    keys.forEach((k, i) => { obj[k] = parts[i] || ''; });
-                    return obj;
-                }).filter(o => Object.values(o).some(Boolean));
-            };
-
-            const payload = {
-                ...weddingEventForm,
-                highlights: parsePipeList(weddingEventForm.highlights, ['icon', 'label', 'detail'])
-            };
-
-            if (editingWeddingEvent) await api.put(`/wedding-events/${editingWeddingEvent.id}/`, payload);
-            else await api.post('/wedding-events/', payload);
+            if (editingWeddingEvent) await api.put(`/wedding-events/${editingWeddingEvent.id}/`, weddingEventForm);
+            else await api.post('/wedding-events/', weddingEventForm);
             setShowCreateWeddingEvent(false);
             setEditingWeddingEvent(null);
-            setWeddingEventForm({ name: '', description: '', image: '', approx_price: '', highlights: '', decoration_options: '', is_visible: true });
+            setWeddingEventForm({ name: '', description: '', image: '', is_visible: true });
             fetchAllData();
             setCustomAlert({ show: true, title: 'SUCCESS', message: 'Wedding Details updated!' });
         } catch (err) { setCustomAlert({ show: true, title: 'ERROR', message: sanitizeError(err) }); }
@@ -1461,7 +1446,7 @@ const SimpleAdminDashboard = () => {
                                         <>
                                             <tr style={{ background: '#f8fafc' }}>
                                                 <td colSpan="5" style={{ padding: '15px 25px' }}>
-                                                    <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', approx_price: '', highlights: '', decoration_options: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
+                                                    <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
                                                 </td>
                                             </tr>
                                             {weddingEvents.map(e => (
@@ -1484,10 +1469,7 @@ const SimpleAdminDashboard = () => {
                                                             setWeddingEventForm({
                                                                 name: e.name,
                                                                 description: e.description,
-                                                                image: e.image,
-                                                                approx_price: e.approx_price,
-                                                                highlights: Array.isArray(e.highlights) ? e.highlights.map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n') : '',
-                                                                decoration_options: e.decoration_options || '',
+                                                                image: e.image || '',
                                                                 is_visible: e.is_visible
                                                             }); 
                                                             setShowCreateWeddingEvent(true); 
@@ -2687,25 +2669,12 @@ const SimpleAdminDashboard = () => {
                                 <label style={labelStyle}>Description / What's Included</label>
                                 <textarea style={{ ...inputStyle, minHeight: '100px' }} value={weddingEventForm.description} onChange={e => setWeddingEventForm({ ...weddingEventForm, description: e.target.value })} placeholder="Describe the ceremony details..." />
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                                <div><label style={labelStyle}>Approx Cost (₹)</label><input type="number" style={inputStyle} value={weddingEventForm.approx_price} onChange={e => setWeddingEventForm({ ...weddingEventForm, approx_price: e.target.value })} /></div>
-                                <div><label style={labelStyle}>Cover Image URL</label><input style={inputStyle} value={weddingEventForm.image} onChange={e => setWeddingEventForm({ ...weddingEventForm, image: e.target.value })} placeholder="https://..." /></div>
-                            </div>
-                            
-                            <hr style={{ margin: '10px 0', border: 'none', borderTop: '1px solid #eee' }} />
-                            <h3 style={{ fontSize: '0.75rem', marginBottom: '5px', color: '#64748B', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '900' }}>
-                                <span>✨</span> Advanced Ceremony Details
-                            </h3>
-                            
-                            <div>
-                                <label style={labelStyle}>Ceremonial Highlights (icon | label | detail)</label>
-                                <textarea style={{ ...inputStyle, minHeight: '80px' }} value={weddingEventForm.highlights} onChange={e => setWeddingEventForm({ ...weddingEventForm, highlights: e.target.value })} placeholder={'🌸 | Floral Decor | Fresh Marigolds\n🎵 | Music | Folk Singers'} />
-                            </div>
-                            
                              <div>
-                                <label style={labelStyle}>Decoration Options</label>
-                                <textarea style={{ ...inputStyle, minHeight: '100px' }} value={weddingEventForm.decoration_options} onChange={e => setWeddingEventForm({ ...weddingEventForm, decoration_options: e.target.value })} placeholder="Suggest decoration themes or options for this ceremony..." />
+                                <label style={labelStyle}>Cover Image URL</label>
+                                <input style={inputStyle} value={weddingEventForm.image} onChange={e => setWeddingEventForm({ ...weddingEventForm, image: e.target.value })} placeholder="https://..." />
                             </div>
+                            
+
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--light, #f8fafc)', padding: '15px', borderRadius: '12px' }}>
                                 <input type="checkbox" id="ceremony_visible" checked={weddingEventForm.is_visible} onChange={e => setWeddingEventForm({ ...weddingEventForm, is_visible: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />

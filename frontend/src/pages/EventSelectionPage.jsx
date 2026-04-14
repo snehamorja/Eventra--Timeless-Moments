@@ -50,14 +50,6 @@ const EventSelectionPage = () => {
 
     const suggestionList = getSuggestions();
 
-    const weddingFallbackEvents = [
-        { id: 'haldi', name: 'Haldi', description: 'Vibrant pre-wedding ceremony.', image: 'https://static.vecteezy.com/system/resources/previews/012/002/539/non_2x/traditional-wedding-ceremony-beautiful-culture-of-india-or-decorated-for-haldi-ceremony-photo.jpg' },
-        { id: 'mehendi', name: 'Mehendi', description: 'Artistic henna celebrations.', image: 'https://static.vecteezy.com/system/resources/thumbnails/030/831/116/small_2x/indian-wedding-ceremony-in-india-ai-generated-photo.jpg' },
-        { id: 'sangeet', name: 'Sangeet', description: 'Musical night of dancing and joy.', image: 'https://images.shaadisaga.com/shaadisaga_production/photos/pictures/000/693/768/new_medium/devika.jpg?1549273609' },
-        { id: 'wedding', name: 'Wedding', description: 'The main traditional ceremony.', image: 'https://5.imimg.com/data5/SELLER/Default/2022/9/GB/JR/FU/160633913/mandap-decoration-material.jpg' },
-        { id: 'reception', name: 'Reception', description: 'Grand post-wedding celebration.', image: 'https://i.pinimg.com/originals/e0/fe/d5/e0fed576a8a07efca4bce6acb8b1c804.jpg' }
-    ];
-
     useEffect(() => {
         const fetchCeremonies = async () => {
             setLoading(true);
@@ -66,9 +58,6 @@ const EventSelectionPage = () => {
                 let ceremonies = (res.data || []).filter(c => c.is_visible);
 
                 if (category === 'Weddings') {
-                    if (ceremonies.length === 0) {
-                        ceremonies = weddingFallbackEvents;
-                    }
                     if (basicDetails?.eventsRequired) {
                         const required = basicDetails.eventsRequired;
                         const hasSelection = Object.values(required).some(val => val === true);

@@ -360,11 +360,7 @@ class WeddingEvent(models.Model):
     is_deleted = models.BooleanField(default=False)
     is_visible = models.BooleanField(default=True)
     
-    # Advanced Details
-    approx_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    highlights = models.JSONField(default=list, blank=True) # [{icon, label, detail}]
-    decoration_options = models.TextField(blank=True, null=True) # Description of decor options
-    
+    # Basic Details (Simplified)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

@@ -5,24 +5,13 @@ import API from '../services/api';
 import Navbar from '../components/Navbar';
 import CustomInquiryModal from '../components/CustomInquiryModal';
 
-const performersData = [
-  { id: 'perf1', name: 'Live DJ', image: 'https://i.pinimg.com/236x/5f/b8/05/5fb805a2bc65faccaf2aab4f49fe642a.jpg', price: 15000, details: 'High-energy DJ for dance sets.' },
-  { id: 'perf2', name: 'Bollywood Band', image: 'https://artist-man.com/assets2/images/instrumental-band-for-weddings.jpg', price: 25000, details: 'Live band playing Bollywood hits.' },
-  { id: 'perf3', name: 'Dance Performance', image: 'https://images.herzindagi.info/image/2022/Dec/wedding-choreography-india.jpg', price: 12000, details: 'Elegant dance performance for special moments.' }
-];
-
-const singersData = [
-  { id: 'sng1', name: 'Jaysigh Gadhvi', image: 'https://imagesvs.oneindia.com/webp/img/2025/01/jaysinh-gadhavi-1736247845.jpg', price: 100000, details: 'Energetic stage presence.' },
-  { id: 'sng2', name: 'Osman Mir', image: 'https://cdn.starclinch.in/artist/osman-mir/osman-mir-4.jpg?width=3840&quality=75&format=webp&flop=false', price: 90000, details: 'Top playback singer — soulful romantic numbers.' },
-  { id: 'sng3', name: 'Kinjal Dave', image: 'https://sosimg.sgp1.cdn.digitaloceanspaces.com/artist-gallery/3945146_1706597088.webp', price: 82000, details: 'Renowned vocalist with versatile repertoire.' },
-  { id: 'sng4', name: 'Hariom Gadhvi ', image: 'https://usimg.sulekha.io/cdn/events/images/hariom-gadhvi_2024-09-13-07-40-17-282_63.webp', price: 88000, details: 'High-energy performer — perfect for lively sets.' }
-];
-
 const PerformersPage = () => {
   const { formData, setFormData } = useContext(FormContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [showInquiry, setShowInquiry] = useState(false);
+  const [perfList, setPerfList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const getInitialState = () => {
     if (location.state && location.state.selectedStyles) return location.state;
@@ -36,19 +25,35 @@ const PerformersPage = () => {
   const [selectedPerformer, setSelectedPerformer] = useState(null);
 
   useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const res = await API.get('/performers/');
+        setPerfList(res.data || []);
+      } catch (err) {
+        console.error("Error fetching performers:", err);
+        // Temporary fallback if API fails
+        setPerfList([...performersData, ...singersData]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+
     const bookingId = localStorage.getItem("booking_id");
     if (bookingId) {
       API.get(`booking-draft/${bookingId}/`)
         .then(res => {
           if (res.data.performer) {
-            const draftPerf = res.data.performer;
-            const perfInList = [...performersData, ...singersData].find(p => p.id === draftPerf.performer_id || p.name === draftPerf.performer_name);
-            if (perfInList) setSelectedPerformer(perfInList);
+            setSelectedPerformer(res.data.performer);
           }
         })
         .catch(err => console.error("Error loading performer draft:", err));
     }
   }, []);
+
+  const singersList = perfList.filter(p => p.category === 'Singer');
+  const otherPerformers = perfList.filter(p => p.category !== 'Singer');
 
   const handleNext = (overridePerformer) => {
     const activePerformer = overridePerformer || selectedPerformer;
@@ -121,23 +126,37 @@ const PerformersPage = () => {
       </div>
 
       <div style={{ maxWidth: 1200, margin: '60px auto', padding: '0 20px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 40 }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: '#666' }}>⚡ Harmonizing Talent Profiles...</div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 40 }}>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
-            <section>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif' }}>Featured Singers</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-                {singersData.map(renderCard)}
-              </div>
-            </section>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+              {singersList.length > 0 && (
+                <section>
+                  <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif' }}>Featured Singers</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                    {singersList.map(renderCard)}
+                  </div>
+                </section>
+              )}
 
-            <section>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif' }}>Curated Performers</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-                {performersData.map(renderCard)}
-              </div>
-            </section>
-          </div>
+              {otherPerformers.length > 0 && (
+                <section>
+                  <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif' }}>Curated Performers</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                    {otherPerformers.map(renderCard)}
+                  </div>
+                </section>
+              )}
+
+              {perfList.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '100px', background: '#F9F4E8', borderRadius: 20 }}>
+                  <h3>No performers currently listed.</h3>
+                  <p>Please check back later or request a specific artist below.</p>
+                </div>
+              )}
+            </div>
 
           {/* Sticky Summary Sidebar */}
           <aside style={{ height: 'fit-content', position: 'sticky', top: '100px', padding: 30, borderRadius: 20, background: '#fff', boxShadow: '0 20px 50px rgba(0,0,0,0.08)', border: '1px solid #eee' }}>
