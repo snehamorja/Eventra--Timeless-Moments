@@ -2130,13 +2130,22 @@ const SimpleAdminDashboard = () => {
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div><label style={labelStyle}>Option Name</label><input style={inputStyle} placeholder="e.g. Royal Gold Sangeet" value={decorForm.name} onChange={e => setDecorForm({ ...decorForm, name: e.target.value })} /></div>
                                     <div>
-                                        <label style={labelStyle}>Event Type</label>
+                                        <label style={labelStyle}>Event Type (Decoration Category)</label>
                                         <select style={inputStyle} value={decorForm.category} onChange={e => setDecorForm({ ...decorForm, category: e.target.value })}>
-                                            <option value="Wedding">Wedding</option>
-                                            <option value="Sangeet">Sangeet</option>
-                                            <option value="Mehendi">Mehendi</option>
-                                            <option value="Haldi">Haldi</option>
-                                            <option value="Reception">Reception</option>
+                                            <option value="">Select Category</option>
+                                            {weddingEvents.length > 0 ? (
+                                                weddingEvents.filter(we => we.is_visible).map(we => (
+                                                    <option key={we.id} value={`${we.name} Ceremony`}>{we.name} Ceremony</option>
+                                                ))
+                                            ) : (
+                                                <>
+                                                    <option value="Wedding Ceremony">Wedding Ceremony</option>
+                                                    <option value="Sangeet Ceremony">Sangeet Ceremony</option>
+                                                    <option value="Mehendi Ceremony">Mehendi Ceremony</option>
+                                                    <option value="Haldi Ceremony">Haldi Ceremony</option>
+                                                    <option value="Reception Ceremony">Reception Ceremony</option>
+                                                </>
+                                            )}
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>

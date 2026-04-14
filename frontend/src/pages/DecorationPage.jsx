@@ -77,17 +77,18 @@ const DecorationPage = () => {
     navigate('/performers', { state: updatedState });
   };
 
-  const typeMap = {
-    'Mehendi': 'Mehendi Ceremony',
-    'Haldi': 'Haldi Ceremony',
-    'Sangeet': 'Sangeet Night',
-    'Wedding': 'Grand Wedding',
-    'Reception': 'Gala Reception',
-    'mehendi': 'Mehendi Ceremony',
-    'haldi': 'Haldi Ceremony',
-    'sangeet': 'Sangeet Night',
-    'wedding': 'Grand Wedding',
-    'reception': 'Gala Reception'
+  const getCategoryFromType = (type) => {
+    const map = {
+        'Wedding': 'Grand Wedding',
+        'Sangeet': 'Sangeet Night',
+        'Reception': 'Gala Reception'
+    };
+    if (map[type]) return map[type];
+    
+    const found = decorStyles.find(d => d.category && d.category.toLowerCase().includes(type.toLowerCase()));
+    if (found) return found.category;
+
+    return `${type} Ceremony`;
   };
 
   return (
@@ -143,10 +144,10 @@ const DecorationPage = () => {
             <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: '#666' }}>🌸 Spreading Petals & Themes...</div>
         ) : (
             selectedEventTypes.length > 0 ? selectedEventTypes.map(type => {
-              const categoryName = typeMap[type] || 'Grand Wedding';
+              const categoryName = getCategoryFromType(type);
 
               // Filter from the dynamic decorStyles
-              const options = decorStyles.filter(s => s.category === categoryName || s.type === categoryName);
+              const options = decorStyles.filter(s => s.category === categoryName || (s.category && s.category.toLowerCase().includes(type.toLowerCase())));
               const currentSelection = eventSelections[type];
 
               return (

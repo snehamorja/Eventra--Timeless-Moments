@@ -25,12 +25,16 @@ const LocalWeddingFormPage = () => {
     return dateStr < minDate;
   };
 
+  const [ceremonies, setCeremonies] = useState([]);
+  const [loading, setLoading] = useState(true);
+
   // --- 1. RESTORED FULL CONTENT STATE WITH AUTO-DRAFT ---
   const [form, setForm] = useState(() => {
     const savedDraft = localStorage.getItem('wedding_form_draft');
     if (savedDraft) {
       try {
-        return JSON.parse(savedDraft);
+        const parsed = JSON.parse(savedDraft);
+        return parsed;
       } catch (e) {
         console.error("Failed to parse saved draft", e);
       }
@@ -47,9 +51,7 @@ const LocalWeddingFormPage = () => {
       numberOfDays: '1',
       weddingDates: [''],
       preferredTime: '',
-      eventsRequired: {
-        Mehendi: false, Sangeet: false, Haldi: false, Wedding: false, Reception: false
-      },
+      eventsRequired: {}, // Now dynamic
 
       // Venue Details
       venueName: '',
@@ -75,6 +77,42 @@ const LocalWeddingFormPage = () => {
       notes: ''
     };
   });
+
+  useEffect(() => {
+    const fetchCeremonies = async () => {
+        try {
+            const res = await fetch('http://localhost:8000/api/wedding-events/');
+            const data = await res.json();
+            const visible = data.filter(c => c.is_visible);
+            setCeremonies(visible);
+            
+            // Sync eventsRequired with new ceremonies (preserve existing selections)
+            setForm(prev => {
+                const newEventsRequired = { ...prev.eventsRequired };
+                visible.forEach(c => {
+                    if (newEventsRequired[c.name] === undefined) {
+                        newEventsRequired[c.name] = false;
+                    }
+                });
+                return { ...prev, eventsRequired: newEventsRequired };
+            });
+        } catch (err) {
+            console.error("Error fetching ceremonies:", err);
+            // Fallback
+            const fallback = ["Mehendi", "Sangeet", "Haldi", "Wedding", "Reception"];
+            setForm(prev => {
+                const newEventsRequired = { ...prev.eventsRequired };
+                fallback.forEach(f => {
+                    if (newEventsRequired[f] === undefined) newEventsRequired[f] = false;
+                });
+                return { ...prev, eventsRequired: newEventsRequired };
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchCeremonies();
+  }, []);
 
   // Auto-save draft to local storage whenever form changes
   useEffect(() => {
