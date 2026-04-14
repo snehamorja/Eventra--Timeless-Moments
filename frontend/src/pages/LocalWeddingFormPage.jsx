@@ -31,52 +31,37 @@ const LocalWeddingFormPage = () => {
 
   // --- 1. RESTORED FULL CONTENT STATE WITH AUTO-DRAFT ---
   const [form, setForm] = useState(() => {
-    const savedDraft = localStorage.getItem('wedding_form_draft');
-    if (savedDraft) {
+    const defaultData = {
+      brideName: '',
+      groomName: '',
+      contactNumber: '',
+      countryCode: '+91',
+      email: '',
+      numberOfDays: '1',
+      preferredTime: '',
+      weddingDates: [''],
+      eventsRequired: {}, 
+      venueName: '',
+      venueAddress: '',
+      approxBudget: '',
+      guestCount: '',
+      weddingTheme: '',
+      colorPreferences: '',
+      culturalRequirements: '',
+      notes: ''
+    };
+
+    const saved = localStorage.getItem('ongoing_booking');
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedDraft);
-        return parsed;
+        const parsed = JSON.parse(saved);
+        const savedWedding = parsed.eventData?.wedding_details || {};
+        return { ...defaultData, ...savedWedding };
       } catch (e) {
         console.error("Failed to parse saved draft", e);
       }
     }
-    return {
-      // Couple & Contact Information
-      brideName: '',
-      groomName: '',
-      countryCode: '+91',
-      contactNumber: '',
-      email: '',
-
-      // Wedding Schedule
-      numberOfDays: '1',
-      weddingDates: [''],
-      preferredTime: '',
-      eventsRequired: {}, // Now dynamic
-
-      // Venue Details
-      venueName: '',
-      venueAddress: '',
-      venueType: { Indoor: false, Outdoor: false },
-      isDestinationWedding: '',
-
-      // Guest Information
-      guestCount: '',
-
-      // Budget Overview
-      approxBudget: '',
-      budgetPriority: {
-        Decoration: false, Catering: false, Photography: false, Entertainment: false
-      },
-
-      // Preferences
-      weddingTheme: '',
-      colorPreferences: '',
-      culturalRequirements: '',
-
-      // Additional Information
-      notes: ''
-    };
+    return defaultData;
   });
 
   useEffect(() => {

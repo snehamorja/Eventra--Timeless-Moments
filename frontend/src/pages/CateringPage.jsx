@@ -42,10 +42,10 @@ const CateringPage = () => {
 
   // STRICT FILTER: Only show menus within the user's budget (0 to totalBudget)
   const filterCeiling = totalBudget > 0 ? totalBudget : 10000;
-  const filteredMenus = cateringList.filter(m => m.price <= filterCeiling);
+  const filteredMenus = cateringList.filter(m => (m.price_per_plate || m.price) <= filterCeiling);
 
   const handleSelect = (menu) => {
-    const totalCateringCost = menu.price * guestCount;
+    const totalCateringCost = (menu.price_per_plate || menu.price || 0) * guestCount;
     const updatedState = {
       ...currentState,
       selectedMenu: menu,
@@ -140,7 +140,7 @@ const CateringPage = () => {
         ) : filteredMenus.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: 40 }}>
             {filteredMenus.map(m => {
-              const matchesExactly = totalBudget > 0 && m.price === totalBudget;
+              const matchesExactly = totalBudget > 0 && (m.price_per_plate || m.price) === totalBudget;
 
               return (
                 <div
@@ -193,7 +193,7 @@ const CateringPage = () => {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f0f0f0', paddingTop: '20px' }}>
                       <div>
-                        <span style={{ fontSize: '1.3rem', fontWeight: 900 }}>₹{parseFloat(m.price).toLocaleString('en-IN')}</span>
+                        <span style={{ fontSize: '1.3rem', fontWeight: 900 }}>₹{parseFloat(m.price_per_plate || m.price || 0).toLocaleString('en-IN')}</span>
                         <span style={{ color: '#999', fontSize: '0.8rem', marginLeft: 5 }}>/ plate</span>
                       </div>
                       <div style={{ color: '#C4A059', fontWeight: 'bold', fontSize: '0.9rem' }}>Select Menu →</div>
