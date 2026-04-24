@@ -36,7 +36,7 @@ const BookingForm = () => {
         preferredTime: basicDetails.preferredTime || '',
         numberOfDays: basicDetails.numberOfDays || '',
         eventsRequired: basicDetails.eventsRequired || {
-            Mehendi: false, Sangeet: false, Haldi: false, Wedding: false, Reception: false
+            Mehendi: false, Sangeet: false, Haldi: false, Wedding: false
         },
 
         venueName: basicDetails.venueName || '',

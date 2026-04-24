@@ -75,11 +75,11 @@ const SimpleAdminDashboard = () => {
     const [sportsRegForm, setSportsRegForm] = useState({ status: 'Confirmed', team_name: '', player_name: '', registration_type: 'Individual' });
 
     const [activeTab, setActiveTab] = useState('Overview'); // Changed from Inquiries
-    const [globalStats, setGlobalStats] = useState({ 
-        pendingEvents: 0, 
-        finishedEvents: 0, 
-        completedEvents: 0, 
-        totalRevenue: 0 
+    const [globalStats, setGlobalStats] = useState({
+        pendingEvents: 0,
+        finishedEvents: 0,
+        completedEvents: 0,
+        totalRevenue: 0
     });
     const [recentActivity, setRecentActivity] = useState([]);
     const [weddingSubTab, setWeddingSubTab] = useState('Bookings'); // Bookings, Decor, Catering, Performer
@@ -143,6 +143,18 @@ const SimpleAdminDashboard = () => {
         return msg.substring(0, 150);
     };
 
+    const getRandomImage = (type) => {
+        const wedding = ["https://images.unsplash.com/photo-1519225421980-715cb0202128?q=80&w=800", "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=800", "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=800"];
+        const food = ["https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=800", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800"];
+        const entertainment = ["https://images.unsplash.com/photo-1514525253361-bee8d40d4ba1?q=80&w=800", "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=800"];
+        const festival = ["https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=800", "https://images.unsplash.com/photo-1459749411177-042180ce673c?q=80&w=800"];
+
+        if (type === 'Wedding') return wedding[Math.floor(Math.random() * wedding.length)];
+        if (type === 'Catering') return food[Math.floor(Math.random() * food.length)];
+        if (type === 'Festival') return festival[Math.floor(Math.random() * festival.length)];
+        return entertainment[Math.floor(Math.random() * entertainment.length)];
+    };
+
     useEffect(() => {
         fetchAllData();
         const interval = setInterval(() => fetchAllData(true), 15000);
@@ -175,15 +187,15 @@ const SimpleAdminDashboard = () => {
     useEffect(() => {
         if (activeTab === 'Weddings') {
             const currentData = weddingSubTab === 'Bookings' ? bookings :
-                                weddingSubTab === 'Ceremonies' ? weddingEvents : 
-                                weddingSubTab === 'Decor' ? decorations :
-                                weddingSubTab === 'Catering' ? catering : performers;
+                weddingSubTab === 'Ceremonies' ? weddingEvents :
+                    weddingSubTab === 'Decor' ? decorations :
+                        weddingSubTab === 'Catering' ? catering : performers;
             setStats({
                 total: currentData.length,
-                pending: weddingSubTab === 'Bookings' ? currentData.filter(b => b.status === 'Pending').length : 
-                         weddingSubTab === 'Ceremonies' ? currentData.filter(e => !e.is_visible).length : 0,
-                approved: weddingSubTab === 'Bookings' ? currentData.filter(b => b.status === 'Approved').length : 
-                          weddingSubTab === 'Ceremonies' ? currentData.filter(e => e.is_visible).length : currentData.length,
+                pending: weddingSubTab === 'Bookings' ? currentData.filter(b => b.status === 'Pending').length :
+                    weddingSubTab === 'Ceremonies' ? currentData.filter(e => !e.is_visible).length : 0,
+                approved: weddingSubTab === 'Bookings' ? currentData.filter(b => b.status === 'Approved').length :
+                    weddingSubTab === 'Ceremonies' ? currentData.filter(e => e.is_visible).length : currentData.length,
                 revenue: weddingSubTab === 'Bookings' ? currentData.reduce((acc, b) => acc + (parseFloat(b.total_cost) || 0), 0) : 0
             });
         }
@@ -315,7 +327,7 @@ const SimpleAdminDashboard = () => {
 
             const allEventData = [...allWeddings, ...allConcerts, ...allFestivals, ...allSports];
 
-            const totalRevenue = 
+            const totalRevenue =
                 allWeddings.filter(b => ['approved', 'confirmed'].includes((b.status || '').toLowerCase())).reduce((acc, b) => acc + (parseFloat(b.total_cost) || 0), 0) +
                 allConcerts.filter(c => ['confirmed', 'paid'].includes((c.status || '').toLowerCase())).reduce((acc, c) => acc + (parseFloat(c.total_price) || 0), 0) +
                 allFestivals.filter(f => ['confirmed', 'paid'].includes((f.status || '').toLowerCase())).reduce((acc, f) => acc + (parseFloat(f.total_price) || 0), 0) +
@@ -455,13 +467,13 @@ const SimpleAdminDashboard = () => {
             if (type === 'concert') path = `concerts/${item.id}/`;
             else if (type === 'festival') path = `festivals/${item.id}/`;
             else if (type === 'wedding-event') path = `wedding-events/${item.id}/`;
-            
+
             await api.patch(path, { is_visible: !item.is_visible });
             fetchAllData();
-            setCustomAlert({ 
-                show: true, 
-                title: 'UPDATED', 
-                message: `Event is now ${!item.is_visible ? 'VISIBLE' : 'HIDDEN'} to users.` 
+            setCustomAlert({
+                show: true,
+                title: 'UPDATED',
+                message: `Event is now ${!item.is_visible ? 'VISIBLE' : 'HIDDEN'} to users.`
             });
         } catch (err) {
             setCustomAlert({ show: true, title: 'ERROR', message: sanitizeError(err) });
@@ -555,10 +567,13 @@ const SimpleAdminDashboard = () => {
 
     const handleDecorSubmit = async () => {
         try {
+            const finalForm = { ...decorForm };
+            if (!finalForm.image) finalForm.image = getRandomImage('Wedding');
+
             if (editingDecor) {
-                await api.put(`/decorations/${editingDecor.id}/`, decorForm);
+                await api.put(`/decorations/${editingDecor.id}/`, finalForm);
             } else {
-                await api.post('/decorations/', decorForm);
+                await api.post('/decorations/', finalForm);
             }
             setShowCreateDecor(false);
             setEditingDecor(null);
@@ -578,8 +593,11 @@ const SimpleAdminDashboard = () => {
 
     const handleCateringSubmit = async () => {
         try {
-            if (editingCatering) await api.put(`/catering/${editingCatering.id}/`, cateringForm);
-            else await api.post('/catering/', cateringForm);
+            const finalForm = { ...cateringForm };
+            if (!finalForm.image) finalForm.image = getRandomImage('Catering');
+
+            if (editingCatering) await api.put(`/catering/${editingCatering.id}/`, finalForm);
+            else await api.post('/catering/', finalForm);
             setShowCreateCatering(false);
             setEditingCatering(null);
             setCateringForm({ name: '', description: '', price_per_plate: 0, image: '' });
@@ -592,8 +610,11 @@ const SimpleAdminDashboard = () => {
 
     const handlePerformerSubmit = async () => {
         try {
-            if (editingPerformer) await api.put(`/performers/${editingPerformer.id}/`, performerForm);
-            else await api.post('/performers/', performerForm);
+            const finalForm = { ...performerForm };
+            if (!finalForm.image) finalForm.image = getRandomImage('Entertainment');
+
+            if (editingPerformer) await api.put(`/performers/${editingPerformer.id}/`, finalForm);
+            else await api.post('/performers/', finalForm);
             setShowCreatePerformer(false);
             setEditingPerformer(null);
             setPerformerForm({ name: '', category: 'Singer', price: 0, image: '', description: '' });
@@ -606,8 +627,11 @@ const SimpleAdminDashboard = () => {
 
     const handleWeddingEventSubmit = async () => {
         try {
-            if (editingWeddingEvent) await api.put(`/wedding-events/${editingWeddingEvent.id}/`, weddingEventForm);
-            else await api.post('/wedding-events/', weddingEventForm);
+            const finalForm = { ...weddingEventForm };
+            if (!finalForm.image) finalForm.image = getRandomImage('Wedding');
+
+            if (editingWeddingEvent) await api.put(`/wedding-events/${editingWeddingEvent.id}/`, finalForm);
+            else await api.post('/wedding-events/', finalForm);
             setShowCreateWeddingEvent(false);
             setEditingWeddingEvent(null);
             setWeddingEventForm({ name: '', description: '', image: '', is_visible: true });
@@ -657,14 +681,14 @@ const SimpleAdminDashboard = () => {
             startDate.setHours(0, 0, 0, 0);
             const endDate = tourney.end_date ? new Date(tourney.end_date) : startDate;
             endDate.setHours(0, 0, 0, 0);
-            
+
             const today = new Date();
             today.setHours(0, 0, 0, 0);
- 
+
             if (today < startDate || today > endDate) {
-                setCustomAlert({ 
-                    show: true, 
-                    title: 'RESTRICTED', 
+                setCustomAlert({
+                    show: true,
+                    title: 'RESTRICTED',
                     message: `Action not allowed. This tournament occurs on ${tourney.start_date || tourney.date}.`,
                     subMessage: 'Matches can only be recorded or scheduled on the tournament date(s).'
                 });
@@ -701,29 +725,14 @@ const SimpleAdminDashboard = () => {
         } catch (err) { setCustomAlert({ show: true, title: 'ERROR', message: sanitizeError(err) }); }
     };
 
-    const handleConcertSubmit = async () => {
+    const handleConcertSubmit = async (overriddenForm = null) => {
         try {
-            const parseSimpleList = (str) => str ? str.split(',').map(s => s.trim()).filter(Boolean) : [];
-            const parseSimplePairs = (str) => {
-                const obj = {};
-                str.split(',').forEach(pair => {
-                    const [k, v] = pair.split(':').map(s => s.trim());
-                    if (k && v) obj[k] = v;
-                });
-                return obj;
-            };
-            const parsePipeList = (str, keys) => {
-                return str.split('\n').map(line => {
-                    const parts = line.split('|').map(s => s.trim());
-                    const obj = {};
-                    keys.forEach((k, i) => { obj[k] = parts[i] || ''; });
-                    return obj;
-                }).filter(o => Object.values(o).some(Boolean));
-            };
+            const currentForm = overriddenForm || concertForm;
+            const parseSimpleList = (str) => typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(str) ? str : []);
 
             const payload = {
-                ...concertForm,
-                popularTracks: parseSimpleList(concertForm.popularTracks),
+                ...currentForm,
+                popularTracks: parseSimpleList(currentForm.popularTracks),
                 highlights: parseSimplePairs(concertForm.highlights),
                 tickets: parsePipeList(concertForm.tickets, ['type', 'price']),
                 schedule: parsePipeList(concertForm.schedule, ['time', 'act']),
@@ -746,19 +755,13 @@ const SimpleAdminDashboard = () => {
         } catch (err) { setCustomAlert({ show: true, title: 'ERROR', message: sanitizeError(err) }); }
     };
 
-    const handleFestivalSubmit = async () => {
-        // Validate mandatory fields
-        const required = ['name', 'city', 'venue', 'startDate', 'endDate', 'time', 'image', 'about', 'passes', 'highlights'];
-        const missing = required.filter(f => !festivalForm[f] || festivalForm[f].toString().trim() === '');
-        if (missing.length > 0) {
-            setCustomAlert({ show: true, title: 'MISSING FIELDS', message: `Please fill in: ${missing.join(', ')}`, mode: 'notice' });
-            return;
-        }
-
+    const handleFestivalSubmit = async (finalForm = null) => {
+        const currentForm = finalForm || festivalForm;
         try {
-            const parseSimpleList = (str) => str ? str.split(',').map(s => s.trim()).filter(Boolean) : [];
+            const parseSimpleList = (str) => typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(str) ? str : []);
             const parsePipeList = (str, keys) => {
                 if (!str || !str.trim()) return [];
+                if (Array.isArray(str)) return str;
                 return str.split('\n').map(line => {
                     const parts = line.split('|').map(s => s.trim());
                     const obj = {};
@@ -768,29 +771,29 @@ const SimpleAdminDashboard = () => {
             };
 
             // highlights: each line = "icon | label | detail"
-            const highlightsRaw = festivalForm.highlights || '';
-            const highlights = highlightsRaw.split('\n').map(line => {
+            const highlightsRaw = currentForm.highlights || '';
+            const highlights = typeof highlightsRaw === 'string' ? highlightsRaw.split('\n').map(line => {
                 const parts = line.split('|').map(s => s.trim());
                 return { icon: parts[0] || '🎉', label: parts[1] || '', detail: parts[2] || '' };
-            }).filter(h => h.label);
+            }).filter(h => h.label) : highlightsRaw;
 
             // attractions: each line = "image | name | description"
-            const attractions = parsePipeList(festivalForm.attractions, ['image', 'name', 'description']);
+            const attractions = parsePipeList(currentForm.attractions, ['image', 'name', 'description']);
 
             // passes: each line = "type | price | benefits | days"
-            const passes = parsePipeList(festivalForm.passes, ['type', 'price', 'benefits', 'days']);
+            const passes = parsePipeList(currentForm.passes, ['type', 'price', 'benefits', 'days']);
 
             // schedule: each line = "day | event"
-            const schedule = parsePipeList(festivalForm.schedule, ['day', 'event']);
+            const schedule = parsePipeList(currentForm.schedule, ['day', 'event']);
 
             // rules: comma separated
-            const rules = parseSimpleList(festivalForm.rules);
+            const rules = parseSimpleList(currentForm.rules);
 
             // faqs: each line = "question | answer"
-            const faqs = parsePipeList(festivalForm.faqs, ['question', 'answer']);
+            const faqs = parsePipeList(currentForm.faqs, ['question', 'answer']);
 
             const payload = {
-                ...festivalForm,
+                ...currentForm,
                 highlights,
                 attractions,
                 passes,
@@ -809,37 +812,37 @@ const SimpleAdminDashboard = () => {
                 highlights: '', attractions: '', passes: '', schedule: '', rules: '', faqs: ''
             });
             fetchAllData();
-            // Navigate to festivals page to see the result
             navigate('/festivals');
         } catch (err) { setCustomAlert({ show: true, title: 'ERROR', message: sanitizeError(err) }); }
     };
 
-    const handleTournamentSubmit = async () => {
+    const handleTournamentSubmit = async (finalForm = null) => {
+        const data = finalForm || tournamentForm;
         try {
-            if (!tournamentForm.start_date || !tournamentForm.registration_deadline) {
+            if (!data.start_date || !data.registration_deadline) {
                 setCustomAlert({ show: true, title: 'MISSING DATES', message: 'Please set both the start date and registration deadline.' });
                 return;
             }
 
-            const start = new Date(tournamentForm.start_date);
-            const deadline = new Date(tournamentForm.registration_deadline);
-            
+            const start = new Date(data.start_date);
+            const deadline = new Date(data.registration_deadline);
+
             // Calculate 10 days before start
             const tenDaysBefore = new Date(start);
             tenDaysBefore.setDate(tenDaysBefore.getDate() - 10);
 
             if (deadline > tenDaysBefore) {
-                setCustomAlert({ 
-                    show: true, 
-                    title: 'INVALID DEADLINE', 
+                setCustomAlert({
+                    show: true,
+                    title: 'INVALID DEADLINE',
                     message: 'The registration deadline must be at least 10 days BEFORE the tournament start date.',
-                    subMessage: `For a tournament starting on ${tournamentForm.start_date}, the deadline must be on or before ${tenDaysBefore.toISOString().split('T')[0]}.`
+                    subMessage: `For a tournament starting on ${data.start_date}, the deadline must be on or before ${tenDaysBefore.toISOString().split('T')[0]}.`
                 });
                 return;
             }
 
-            if (editingTournament) await api.put(`/tournaments/${editingTournament.id}/`, tournamentForm);
-            else await api.post('/tournaments/', tournamentForm);
+            if (editingTournament) await api.put(`/tournaments/${editingTournament.id}/`, data);
+            else await api.post('/tournaments/', data);
             setShowCreateTournament(false);
             setEditingTournament(null);
             fetchAllData(); // Added fetchAllData to refresh list
@@ -872,7 +875,7 @@ const SimpleAdminDashboard = () => {
         setTheme(newTheme);
         if (newTheme === 'dark') document.body.classList.add('dark-theme');
         else document.body.classList.remove('dark-theme');
-        
+
         try {
             await api.patch('/profile/', { theme: newTheme });
         } catch (e) {
@@ -935,7 +938,7 @@ const SimpleAdminDashboard = () => {
                             <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#10B981', textTransform: 'uppercase' }}>Live System</span>
                         </div>
                     </div>
-                    
+
                     <div style={{ display: 'flex', alignItems: 'center', gap: '30px' }}>
                         <div style={layoutStyles.userBadge}>
                             <div style={layoutStyles.userAvatar}>
@@ -950,15 +953,15 @@ const SimpleAdminDashboard = () => {
                                 <div style={{ fontSize: '0.75rem', color: 'var(--gray, #718096)' }}>{adminUser?.role || 'Staff Control'}</div>
                             </div>
                         </div>
-                        
-                        <button 
-                            onClick={() => { localStorage.clear(); navigate('/admin-login'); }} 
-                            style={{ 
-                                ...layoutStyles.actionBtnAlt, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '8px', 
-                                border: '1px solid #EF444450', 
+
+                        <button
+                            onClick={() => { localStorage.clear(); navigate('/admin-login'); }}
+                            style={{
+                                ...layoutStyles.actionBtnAlt,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                border: '1px solid #EF444450',
                                 color: '#EF4444',
                                 fontSize: '0.8rem',
                                 padding: '8px 15px'
@@ -976,7 +979,7 @@ const SimpleAdminDashboard = () => {
                         <div style={{ maxWidth: '800px', margin: '0 auto' }}>
                             <div style={{ ...layoutStyles.card, padding: '40px' }}>
                                 <h2 style={{ fontSize: '1.8rem', fontWeight: '900', color: 'var(--dark, #0F172A)', marginBottom: '30px' }}>Account Settings</h2>
-                                
+
                                 <div style={{ display: 'flex', gap: '40px', marginBottom: '40px', alignItems: 'center', background: 'var(--light, #f8fafc)', padding: '30px', borderRadius: '15px' }}>
                                     <div style={{ ...layoutStyles.userAvatar, width: '100px', height: '100px', fontSize: '2.5rem', borderRadius: '25%' }}>
                                         {profileForm.profile_photo ? (
@@ -990,10 +993,10 @@ const SimpleAdminDashboard = () => {
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <label style={{ ...layoutStyles.actionBtnPrimary, padding: '10px 15px', fontSize: '0.85rem', cursor: 'pointer' }}>
                                                 📁 Upload From Gallery
-                                                <input 
-                                                    type="file" 
-                                                    accept="image/*" 
-                                                    style={{ display: 'none' }} 
+                                                <input
+                                                    type="file"
+                                                    accept="image/*"
+                                                    style={{ display: 'none' }}
                                                     onChange={(e) => {
                                                         const file = e.target.files[0];
                                                         if (file) {
@@ -1006,23 +1009,23 @@ const SimpleAdminDashboard = () => {
                                                     }}
                                                 />
                                             </label>
-                                            <button onClick={() => setProfileForm({...profileForm, profile_photo: ''})} style={{ ...layoutStyles.actionBtnAlt, padding: '10px 15px', color: '#EF4444', borderColor: '#EF4444' }}>Remove</button>
+                                            <button onClick={() => setProfileForm({ ...profileForm, profile_photo: '' })} style={{ ...layoutStyles.actionBtnAlt, padding: '10px 15px', color: '#EF4444', borderColor: '#EF4444' }}>Remove</button>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '30px' }}>
-                                    <div><label style={labelStyle}>Staff ID / Username</label><input style={inputStyle} value={profileForm.username} onChange={e => setProfileForm({...profileForm, username: e.target.value})} /></div>
-                                    <div><label style={labelStyle}>Official Email</label><input style={inputStyle} value={profileForm.email} onChange={e => setProfileForm({...profileForm, email: e.target.value})} /></div>
-                                    <div><label style={labelStyle}>Direct Phone</label><input style={inputStyle} value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})} /></div>
+                                    <div><label style={labelStyle}>Staff ID / Username</label><input style={inputStyle} value={profileForm.username} onChange={e => setProfileForm({ ...profileForm, username: e.target.value })} /></div>
+                                    <div><label style={labelStyle}>Official Email</label><input style={inputStyle} value={profileForm.email} onChange={e => setProfileForm({ ...profileForm, email: e.target.value })} /></div>
+                                    <div><label style={labelStyle}>Direct Phone</label><input style={inputStyle} value={profileForm.phone} onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })} /></div>
                                 </div>
 
                                 <div style={{ background: 'rgba(59, 130, 246, 0.05)', padding: '25px', borderRadius: '15px', border: '1px solid rgba(59, 130, 246, 0.1)', marginBottom: '30px' }}>
                                     <h3 style={{ fontSize: '1rem', fontWeight: '900', marginBottom: '15px' }}>Security (Password Change)</h3>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
-                                        <input type="password" style={inputStyle} placeholder="Current Password" value={passwordForm.old_password} onChange={e => setPasswordForm({...passwordForm, old_password: e.target.value})} />
-                                        <input type="password" style={inputStyle} placeholder="New Password" value={passwordForm.new_password} onChange={e => setPasswordForm({...passwordForm, new_password: e.target.value})} />
-                                        <input type="password" style={inputStyle} placeholder="Confirm New" value={passwordForm.confirm_password} onChange={e => setPasswordForm({...passwordForm, confirm_password: e.target.value})} />
+                                        <input type="password" style={inputStyle} placeholder="Current Password" value={passwordForm.old_password} onChange={e => setPasswordForm({ ...passwordForm, old_password: e.target.value })} />
+                                        <input type="password" style={inputStyle} placeholder="New Password" value={passwordForm.new_password} onChange={e => setPasswordForm({ ...passwordForm, new_password: e.target.value })} />
+                                        <input type="password" style={inputStyle} placeholder="Confirm New" value={passwordForm.confirm_password} onChange={e => setPasswordForm({ ...passwordForm, confirm_password: e.target.value })} />
                                     </div>
                                     <button onClick={handlePasswordChange} style={{ ...layoutStyles.actionBtnPrimary, padding: '10px 15px', fontSize: '0.85rem', marginTop: '15px', background: '#0F172A' }}>Update Security Credentials</button>
                                 </div>
@@ -1032,813 +1035,804 @@ const SimpleAdminDashboard = () => {
                         </div>
                     ) : (
                         <>
-                    {activeTab === 'Overview' ? (
-                        <div style={{ ...layoutStyles.statsGrid, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
-                            <div onClick={() => setShowPendingOnly(!showPendingOnly)} style={{ cursor: 'pointer' }}>
-                                <StatCard title="Global Pending" value={globalStats.pendingEvents} color="#EF4444" icon="⏳" />
-                            </div>
-                            <StatCard title="Approved Bookings" value={globalStats.finishedEvents} color="#38BDF8" icon="✅" />
-                            <StatCard title="Total Revenue" value={globalStats.totalRevenue} color="#F59E0B" icon="💰" isCurrency />
-                            <StatCard title="Active Users" value={globalStats.totalUsers} color="#8B5CF6" icon="👥" />
-                            <StatCard title="Total Jobs" value={globalStats.totalJobs} color="#10B981" icon="💼" />
-                            <StatCard title="Live Blogs" value={globalStats.activeBlogs} color="#EC4899" icon="✍️" />
-                        </div>
-                    ) : (
-                        <div style={layoutStyles.statsGrid}>
-                            <StatCard
-                                title={activeTab === 'Blogs' ? "Total Blogs" : activeTab === 'Users' ? "Total Accounts" : "Total Records"}
-                                value={stats.total}
-                                color="#3B82F6"
-                                icon="📊"
-                            />
-                            <StatCard
-                                title={activeTab === 'Blogs' ? "Drafts" : "Pending Actions"}
-                                value={stats.pending}
-                                color="#F59E0B"
-                                icon="⏳"
-                            />
-                            <StatCard
-                                title={activeTab === 'Blogs' ? "Live Posts" : "Approved Items"}
-                                value={stats.approved}
-                                color="#10B981"
-                                icon="🏆"
-                            />
-                            <StatCard
-                                title="Tab Revenue"
-                                value={stats.revenue}
-                                color="#EF4444"
-                                icon="💰"
-                                isCurrency
-                            />
-                        </div>
-                    )}
-
-
-                    {activeTab === 'Overview' && (
-                        <div style={{ display: 'grid', gridTemplateColumns: showPendingOnly ? '1fr' : '2fr 1fr', gap: '20px', marginBottom: '30px' }}>
-                            <div style={layoutStyles.card}>
-                                <div style={layoutStyles.cardHeader}>
-                                    <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900' }}>
-                                        {showPendingOnly ? '🚨 ALL PENDING ACTIONS' : 'PLATFORM PULSE (ALL ACTIVITY)'}
-                                    </h2>
-                                    <span style={{ fontSize: '0.8rem', color: '#888' }}>
-                                        {showPendingOnly ? 'Records awaiting approval' : 'Last 10 Recent Actions'}
-                                    </span>
-                                    {showPendingOnly && <button onClick={() => setShowPendingOnly(false)} style={{ background: '#eee', border: 'none', padding: '5px 12px', borderRadius: '15px', cursor: 'pointer' }}>Close List</button>}
+                            {activeTab === 'Overview' ? (
+                                <div style={{ ...layoutStyles.statsGrid, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+                                    <div onClick={() => setShowPendingOnly(!showPendingOnly)} style={{ cursor: 'pointer' }}>
+                                        <StatCard title="Global Pending" value={globalStats.pendingEvents} color="#EF4444" icon="⏳" />
+                                    </div>
+                                    <StatCard title="Approved Bookings" value={globalStats.finishedEvents} color="#38BDF8" icon="✅" />
+                                    <StatCard title="Total Revenue" value={globalStats.totalRevenue} color="#F59E0B" icon="💰" isCurrency />
+                                    <StatCard title="Active Users" value={globalStats.totalUsers} color="#8B5CF6" icon="👥" />
+                                    <StatCard title="Total Jobs" value={globalStats.totalJobs} color="#10B981" icon="💼" />
+                                    <StatCard title="Live Blogs" value={globalStats.activeBlogs} color="#EC4899" icon="✍️" />
                                 </div>
-                                <div style={{ padding: '20px' }}>
-                                    {(showPendingOnly ? recentActivity.filter(a => a.status === 'Pending') : recentActivity.slice(0, 10)).length === 0 ? (
-                                        <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>No recent activity to show.</div>
-                                    ) : (showPendingOnly ? recentActivity.filter(a => a.status === 'Pending') : recentActivity.slice(0, 10)).map((act, idx) => (
-                                        <div key={idx} style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            justifyContent: 'space-between', 
-                                            padding: '12px 15px', 
-                                            borderBottom: idx < recentActivity.length - 1 ? '1px solid #f0f0f0' : 'none',
-                                            transition: '0.2s'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                                                <div style={{ fontSize: '1.5rem' }}>{act._icon}</div>
-                                                <div>
-                                                    <div style={{ fontWeight: '800', fontSize: '0.9rem' }}>{act._label}</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#666' }}>{act.username || act.full_name || 'System'} • {new Date(act._time).toLocaleString()}</div>
+                            ) : (
+                                <div style={layoutStyles.statsGrid}>
+                                    <StatCard
+                                        title={activeTab === 'Blogs' ? "Total Blogs" : activeTab === 'Users' ? "Total Accounts" : "Total Records"}
+                                        value={stats.total}
+                                        color="#3B82F6"
+                                        icon="📊"
+                                    />
+                                    <StatCard
+                                        title={activeTab === 'Blogs' ? "Drafts" : "Pending Actions"}
+                                        value={stats.pending}
+                                        color="#F59E0B"
+                                        icon="⏳"
+                                    />
+                                    <StatCard
+                                        title={activeTab === 'Blogs' ? "Live Posts" : "Approved Items"}
+                                        value={stats.approved}
+                                        color="#10B981"
+                                        icon="🏆"
+                                    />
+                                    <StatCard
+                                        title="Tab Revenue"
+                                        value={stats.revenue}
+                                        color="#EF4444"
+                                        icon="💰"
+                                        isCurrency
+                                    />
+                                </div>
+                            )}
+
+
+                            {activeTab === 'Overview' && (
+                                <div style={{ display: 'grid', gridTemplateColumns: showPendingOnly ? '1fr' : '2fr 1fr', gap: '20px', marginBottom: '30px' }}>
+                                    <div style={layoutStyles.card}>
+                                        <div style={layoutStyles.cardHeader}>
+                                            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900' }}>
+                                                {showPendingOnly ? '🚨 ALL PENDING ACTIONS' : 'PLATFORM PULSE (ALL ACTIVITY)'}
+                                            </h2>
+                                            <span style={{ fontSize: '0.8rem', color: '#888' }}>
+                                                {showPendingOnly ? 'Records awaiting approval' : 'Last 10 Recent Actions'}
+                                            </span>
+                                            {showPendingOnly && <button onClick={() => setShowPendingOnly(false)} style={{ background: '#eee', border: 'none', padding: '5px 12px', borderRadius: '15px', cursor: 'pointer' }}>Close List</button>}
+                                        </div>
+                                        <div style={{ padding: '20px' }}>
+                                            {(showPendingOnly ? recentActivity.filter(a => a.status === 'Pending') : recentActivity.slice(0, 10)).length === 0 ? (
+                                                <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>No recent activity to show.</div>
+                                            ) : (showPendingOnly ? recentActivity.filter(a => a.status === 'Pending') : recentActivity.slice(0, 10)).map((act, idx) => (
+                                                <div key={idx} style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    padding: '12px 15px',
+                                                    borderBottom: idx < recentActivity.length - 1 ? '1px solid #f0f0f0' : 'none',
+                                                    transition: '0.2s'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                                        <div style={{ fontSize: '1.5rem' }}>{act._icon}</div>
+                                                        <div>
+                                                            <div style={{ fontWeight: '800', fontSize: '0.9rem' }}>{act._label}</div>
+                                                            <div style={{ fontSize: '0.75rem', color: '#666' }}>{act.username || act.full_name || 'System'} • {new Date(act._time).toLocaleString()}</div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#10B981' }}>
+                                                        {act.total_price || act.total_cost ? `₹${(act.total_price || act.total_cost).toLocaleString()}` : 'NEW'}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#10B981' }}>
-                                                {act.total_price || act.total_cost ? `₹${(act.total_price || act.total_cost).toLocaleString()}` : 'NEW'}
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                    </div>
 
-                            {!showPendingOnly && (
-                                <div style={{ ...layoutStyles.card, background: 'linear-gradient(135deg, #1D3557 0%, #111 100%)', color: '#fff' }}>
-                                    <div style={{ padding: '25px' }}>
-                                        <h3 style={{ fontSize: '1.4rem', marginBottom: '25px', fontWeight: '900', borderBottom: '2px solid rgba(196, 160, 89, 0.3)', paddingBottom: '10px' }}>Quick Tips</h3>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                            <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                                                <div style={{ fontWeight: '900', color: '#38BDF8', fontSize: '0.7rem', marginBottom: '2px' }}>TIPS (T for Task)</div>
-                                                <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>Use the "Recycle Bin" to restore any accidentally deleted bookings immediately.</p>
-                                            </div>
-                                            <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
-                                                <div style={{ fontWeight: '900', color: '#A855F7', fontSize: '0.7rem', marginBottom: '2px' }}>INFO (I for Insight)</div>
-                                                <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>"Master Events" allow you to manage core details for festivals and concerts in one go.</p>
-                                            </div>
-                                            <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                                                <div style={{ fontWeight: '900', color: '#10B981', fontSize: '0.7rem', marginBottom: '2px' }}>PULSE (P for Performance)</div>
-                                                <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>The activity pulse feed now shows your top 10 most recent administrative actions.</p>
-                                            </div>
-                                            <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
-                                                <div style={{ fontWeight: '900', color: '#F59E0B', fontSize: '0.7rem', marginBottom: '2px' }}>SETUP (S for Success)</div>
-                                                <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>Check your "Global Pending" card to quickly view all items awaiting your approval.</p>
+                                    {!showPendingOnly && (
+                                        <div style={{ ...layoutStyles.card, background: 'linear-gradient(135deg, #1D3557 0%, #111 100%)', color: '#fff' }}>
+                                            <div style={{ padding: '25px' }}>
+                                                <h3 style={{ fontSize: '1.4rem', marginBottom: '25px', fontWeight: '900', borderBottom: '2px solid rgba(196, 160, 89, 0.3)', paddingBottom: '10px' }}>Quick Tips</h3>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                                    <div style={{ background: 'rgba(56, 189, 248, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                                                        <div style={{ fontWeight: '900', color: '#38BDF8', fontSize: '0.7rem', marginBottom: '2px' }}>TIPS (T for Task)</div>
+                                                        <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>Use the "Recycle Bin" to restore any accidentally deleted bookings immediately.</p>
+                                                    </div>
+                                                    <div style={{ background: 'rgba(168, 85, 247, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(168, 85, 247, 0.2)' }}>
+                                                        <div style={{ fontWeight: '900', color: '#A855F7', fontSize: '0.7rem', marginBottom: '2px' }}>INFO (I for Insight)</div>
+                                                        <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>"Master Events" allow you to manage core details for festivals and concerts in one go.</p>
+                                                    </div>
+                                                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                        <div style={{ fontWeight: '900', color: '#10B981', fontSize: '0.7rem', marginBottom: '2px' }}>PULSE (P for Performance)</div>
+                                                        <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>The activity pulse feed now shows your top 10 most recent administrative actions.</p>
+                                                    </div>
+                                                    <div style={{ background: 'rgba(245, 158, 11, 0.1)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                                                        <div style={{ fontWeight: '900', color: '#F59E0B', fontSize: '0.7rem', marginBottom: '2px' }}>SETUP (S for Success)</div>
+                                                        <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.9 }}>Check your "Global Pending" card to quickly view all items awaiting your approval.</p>
+                                                    </div>
+                                                </div>
+                                                <button onClick={() => navigate('/')} style={{ marginTop: '20px', width: '100%', padding: '12px', borderRadius: '10px', background: '#C4A059', border: 'none', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Visit Live Site</button>
                                             </div>
                                         </div>
-                                        <button onClick={() => navigate('/')} style={{ marginTop: '20px', width: '100%', padding: '12px', borderRadius: '10px', background: '#C4A059', border: 'none', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>Visit Live Site</button>
+                                    )}
+                                </div>
+                            )}
+
+                            {activeTab !== 'Overview' && (
+                                <div style={layoutStyles.card}>
+                                    <div style={layoutStyles.cardHeader}>
+                                        <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>
+                                            {activeTab === 'Trash' ? 'RECYCLE BIN' :
+                                                activeTab === 'Weddings' ? `WEDDING ${weddingSubTab.toUpperCase()}` :
+                                                    activeTab.toUpperCase() + ' LEDGER'}
+                                        </h2>
+                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                            {activeTab === 'Weddings' && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {['Bookings', 'Ceremonies', 'Decor', 'Catering', 'Performer'].map(tab => (
+                                                        <button
+                                                            key={tab}
+                                                            onClick={() => {
+                                                                setWeddingSubTab(tab);
+                                                                if (tab === 'Ceremonies') {
+                                                                    setViewMaster(true);
+                                                                } else {
+                                                                    setViewMaster(false);
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                ...layoutStyles.actionBtnAlt,
+                                                                background: weddingSubTab === tab ? '#1D3557' : '#f0f0f0',
+                                                                color: weddingSubTab === tab ? '#fff' : '#555',
+                                                                border: 'none'
+                                                            }}
+                                                        >
+                                                            {tab === 'Ceremonies' ? 'Wedding Details' : tab}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {activeTab === 'Trash' && (
+                                                <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
+                                                    {['All', 'Wedding', 'Job Application', 'Blog', 'Inquiry', 'Decor', 'Gallery', 'Concert', 'Festival', 'Tournament', 'Sports Registration'].map(f => (
+                                                        <button
+                                                            key={f}
+                                                            onClick={() => setTrashFilter(f)}
+                                                            style={{
+                                                                ...layoutStyles.actionBtnAlt,
+                                                                background: trashFilter === f ? '#C4A059' : '#f0f0f0',
+                                                                color: trashFilter === f ? '#fff' : '#555',
+                                                                border: 'none',
+                                                                whiteSpace: 'nowrap'
+                                                            }}
+                                                        >
+                                                            {f}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            {activeTab === 'Blogs' && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {['All', 'Live', 'Draft'].map(f => (
+                                                        <button
+                                                            key={f}
+                                                            onClick={() => setBlogFilter(f)}
+                                                            style={{
+                                                                ...layoutStyles.actionBtnAlt,
+                                                                background: blogFilter === f ? '#3B82F6' : '#f0f0f0',
+                                                                color: blogFilter === f ? '#fff' : '#555',
+                                                                border: 'none',
+                                                                padding: '8px 16px'
+                                                            }}
+                                                        >
+                                                            {f}
+                                                        </button>
+                                                    ))}
+                                                    <button onClick={() => { setShowCreateBlog(true); setEditingBlog(null); setBlogForm({ title: '', content: '', image: '', author: 'Admin', is_published: true }); }} style={layoutStyles.actionBtnPrimary}>+ Write Blog</button>
+                                                </div>
+                                            )}
+                                            {activeTab === 'Decorations' && (
+                                                <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                                                    {['All', 'Wedding', 'Sangeet', 'Mehendi', 'Haldi'].map(f => (
+                                                        <button
+                                                            key={f}
+                                                            onClick={() => setDecorFilter(f)}
+                                                            style={{
+                                                                ...layoutStyles.actionBtnAlt,
+                                                                background: decorFilter === f ? '#3B82F6' : '#f0f0f0',
+                                                                color: decorFilter === f ? '#fff' : '#555',
+                                                                border: 'none',
+                                                                padding: '8px 16px'
+                                                            }}
+                                                        >
+                                                            {f}
+                                                        </button>
+                                                    ))}
+                                                    <button onClick={() => { setEditingDecor(null); setDecorForm({ name: '', category: 'Wedding', price: 0, image: '', description: '' }); setShowCreateDecor(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto' }}>+ Add Decor</button>
+                                                </div>
+                                            )}
+                                            {activeTab === 'Gallery' && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {['All', 'Live', 'Draft'].map(f => (
+                                                        <button
+                                                            key={f}
+                                                            onClick={() => setGalleryFilter(f)}
+                                                            style={{
+                                                                ...layoutStyles.actionBtnAlt,
+                                                                background: galleryFilter === f ? '#10B981' : '#f0f0f0',
+                                                                color: galleryFilter === f ? '#fff' : '#555',
+                                                                border: 'none',
+                                                                padding: '8px 16px'
+                                                            }}
+                                                        >
+                                                            {f}
+                                                        </button>
+                                                    ))}
+                                                    <button onClick={() => setShowCreateGallery(true)} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto' }}>+ Add Photo</button>
+                                                </div>
+                                            )}
+                                            {(activeTab === 'Concerts' || activeTab === 'Festivals') && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={() => setViewMaster(false)} style={{ ...layoutStyles.actionBtnAlt, background: !viewMaster ? '#1D3557' : '#f0f0f0', color: !viewMaster ? '#fff' : '#555' }}>Bookings</button>
+                                                    <button onClick={() => setViewMaster(true)} style={{ ...layoutStyles.actionBtnAlt, background: viewMaster ? '#1D3557' : '#f0f0f0', color: viewMaster ? '#fff' : '#555' }}>Master Events</button>
+                                                    {viewMaster && (
+                                                        <button onClick={() => {
+                                                            if (activeTab === 'Concerts') {
+                                                                setEditingConcert(null);
+                                                                setConcertForm({
+                                                                    title: '', artist: '', artistBio: '', date: defaultPastDate, time: '18:00', venue: '', city: '', genre: '',
+                                                                    bannerImage: '', thumbnail: '', description: '', booking_deadline: defaultPastDate,
+                                                                    popularTracks: '', highlights: '', tickets: '', schedule: '', rules: '', faqs: '', sponsors: ''
+                                                                });
+                                                                setShowCreateConcert(true);
+                                                            } else {
+                                                                setEditingFestival(null);
+                                                                setFestivalForm({
+                                                                    name: '', city: '', venue: '', startDate: defaultPastDate, endDate: defaultPastDate, theme: '', image: '', about: '',
+                                                                    time: '10:00', booking_deadline: defaultPastDate,
+                                                                    highlights: '', attractions: '', passes: '', schedule: '', rules: '', faqs: ''
+                                                                });
+                                                                setShowCreateFestival(true);
+                                                            }
+                                                        }} style={layoutStyles.actionBtnPrimary}>
+                                                            {activeTab === 'Concerts' ? '+ New Concert' : '+ New Festival'}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {activeTab === 'Sports' && (
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <button onClick={() => setSportsSubTab('Registrations')} style={{ ...layoutStyles.actionBtnAlt, background: sportsSubTab === 'Registrations' ? '#1D3557' : '#f0f0f0', color: sportsSubTab === 'Registrations' ? '#fff' : '#555' }}>Registrations</button>
+                                                    <button onClick={() => setSportsSubTab('Tournaments')} style={{ ...layoutStyles.actionBtnAlt, background: sportsSubTab === 'Tournaments' ? '#1D3557' : '#f0f0f0', color: sportsSubTab === 'Tournaments' ? '#fff' : '#555' }}>Tournaments</button>
+                                                    <button onClick={() => setSportsSubTab('Fixtures')} style={{ ...layoutStyles.actionBtnAlt, background: sportsSubTab === 'Fixtures' ? '#1D3557' : '#f0f0f0', color: sportsSubTab === 'Fixtures' ? '#fff' : '#555' }}>Fixtures (Matches)</button>
+                                                    {sportsSubTab === 'Fixtures' && <button onClick={() => { setEditingFixture(null); setFixtureForm({ tournament: '', player1: '', player2: '', match_date: '', round_number: '1', status: 'Scheduled' }); setShowCreateFixture(true); }} style={layoutStyles.actionBtnPrimary}>+ Create Match</button>}
+                                                    {sportsSubTab === 'Tournaments' && <button onClick={() => { setEditingTournament(null); setTournamentForm({ name: '', sport: '', category: 'Team', start_date: '', end_date: '', registration_deadline: '', max_teams: 10, status: 'Registration Open', image: '' }); setShowCreateTournament(true); }} style={layoutStyles.actionBtnPrimary}>+ New Tournament</button>}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={layoutStyles.table}>
+                                            <thead style={layoutStyles.thead}>
+                                                {activeTab === 'Blogs' ? (
+                                                    <tr><th style={thStyle}>Date</th><th style={thStyle}>Title</th><th style={thStyle}>Author</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                ) : activeTab === 'Employment' ? (
+                                                    <tr><th style={thStyle}>Date</th><th style={thStyle}>Applicant</th><th style={thStyle}>Role</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                ) : activeTab === 'Inquiries' ? (
+                                                    <tr><th style={thStyle}>Date</th><th style={thStyle}>Inquiry Type</th><th style={thStyle}>Client</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                ) : activeTab === 'Users' ? (
+                                                    <tr><th style={thStyle}>Username</th><th style={thStyle}>Role</th><th style={thStyle}>Email</th><th style={thStyle}>Phone</th></tr>
+                                                ) : activeTab === 'Gallery' ? (
+                                                    <tr><th style={thStyle}>Title</th><th style={thStyle}>Category</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                ) : (activeTab === 'Weddings' && weddingSubTab === 'Decor') ? (
+                                                    <tr><th style={thStyle}>Name</th><th style={thStyle}>Category</th><th style={thStyle}>Price</th><th style={thStyle}>Action</th></tr>
+                                                ) : (activeTab === 'Weddings' && weddingSubTab === 'Catering') ? (
+                                                    <tr><th style={thStyle}>Package Name</th><th style={thStyle}>Price/Plate</th><th style={thStyle}>Action</th></tr>
+                                                ) : (activeTab === 'Weddings' && weddingSubTab === 'Performer') ? (
+                                                    <tr><th style={thStyle}>Performer</th><th style={thStyle}>Category</th><th style={thStyle}>Base Price</th><th style={thStyle}>Action</th></tr>
+                                                ) : activeTab === 'Concerts' ? (
+                                                    viewMaster ? (
+                                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Concert Name</th><th style={thStyle}>Artist</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
+                                                    ) : (
+                                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Event</th><th style={thStyle}>User</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                    )
+                                                ) : activeTab === 'Festivals' ? (
+                                                    viewMaster ? (
+                                                        <tr><th style={thStyle}>Start Date</th><th style={thStyle}>Festival Name</th><th style={thStyle}>Theme</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
+                                                    ) : (
+                                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Festival</th><th style={thStyle}>User</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                    )
+                                                ) : activeTab === 'Sports' ? (
+                                                    sportsSubTab === 'Tournaments' ? (
+                                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Tournament</th><th style={thStyle}>Sport</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                    ) : sportsSubTab === 'Fixtures' ? (
+                                                        <tr><th style={thStyle}>Match Date</th><th style={thStyle}>P1 / Team1</th><th style={thStyle}>P2 / Team2</th><th style={thStyle}>Winner</th><th style={thStyle}>Status</th><th style={thStyle}>T. Status</th><th style={thStyle}>Action</th></tr>
+                                                    ) : (
+                                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Player/Team</th><th style={thStyle}>Tournament</th><th style={thStyle}>Players</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                    )
+                                                ) : (activeTab === 'Weddings' && weddingSubTab === 'Ceremonies') ? (
+                                                    <tr><th style={thStyle}>Ceremony Name</th><th style={thStyle}>Description</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                ) : activeTab === 'Trash' ? (
+                                                    <tr><th style={thStyle}>Date</th><th style={thStyle}>Type</th><th style={thStyle}>Title/Owner</th><th style={thStyle}>Original Status</th><th style={thStyle}>Action</th></tr>
+                                                ) : (
+                                                    <tr><th style={thStyle}>ID</th><th style={thStyle}>Client</th><th style={thStyle}>Date</th><th style={thStyle}>Total</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                )}
+                                            </thead>
+                                            <tbody>
+                                                {activeTab === 'Weddings' && weddingSubTab === 'Bookings' && bookings.map(b => {
+                                                    const eventDate = new Date(b.event_date);
+                                                    const today = new Date();
+                                                    today.setHours(0, 0, 0, 0);
+                                                    const isCompleted = eventDate < today && b.status === 'Approved';
+
+                                                    return (
+                                                        <tr key={b.id} style={layoutStyles.tr}>
+                                                            <td style={tdStyle}>#WED-{b.id}</td>
+                                                            <td style={tdStyle}><strong>{b.username}</strong></td>
+                                                            <td style={tdStyle}>{b.event_date}</td>
+                                                            <td style={tdStyle}>₹{parseFloat(b.total_cost || 0).toLocaleString()}</td>
+                                                            <td style={tdStyle}>
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: isCompleted ? '#3B82F620' : (b.status === 'Approved' ? '#10B98120' : (b.status === 'Rejected' ? '#EF444420' : '#F59E0B20')),
+                                                                    color: isCompleted ? '#3B82F6' : (b.status === 'Approved' ? '#10B981' : (b.status === 'Rejected' ? '#EF4444' : '#F59E0B'))
+                                                                }}>
+                                                                    {isCompleted ? '✅ Completed' : b.status}
+                                                                </span>
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                <button onClick={() => setInspectingBooking({ ...b, _type: 'wedding' })} style={actionBtn}>Inspect</button>
+                                                                <button onClick={() => handleDeleteItem('wedding', b.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+
+                                                {activeTab === 'Weddings' && weddingSubTab === 'Decor' && (
+                                                    <>
+                                                        <tr style={{ background: '#f8fafc' }}>
+                                                            <td colSpan="4" style={{ padding: '15px 25px' }}>
+                                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                    {['All', 'Wedding', 'Sangeet', 'Mehendi', 'Haldi'].map(f => (
+                                                                        <button key={f} onClick={() => setDecorFilter(f)} style={{ ...layoutStyles.actionBtnAlt, background: decorFilter === f ? '#3B82F6' : '#fff', color: decorFilter === f ? '#fff' : '#555', padding: '6px 12px', fontSize: '11px' }}>{f}</button>
+                                                                    ))}
+                                                                    <button onClick={() => { setEditingDecor(null); setDecorForm({ name: '', category: 'Wedding', price: 0, image: '', description: '' }); setShowCreateDecor(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', padding: '8px 16px', fontSize: '11px' }}>+ Add Decor</button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        {decorations.filter(d => decorFilter === 'All' || d.category === decorFilter).map(d => (
+                                                            <tr key={d.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}><strong>{d.name}</strong></td>
+                                                                <td style={tdStyle}>{d.category}</td>
+                                                                <td style={tdStyle}>₹{parseFloat(d.price).toLocaleString()}</td>
+                                                                <td style={tdStyle}>
+                                                                    <button onClick={() => handleEditDecor(d)} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                    <button onClick={() => handleDeleteItem('decoration', d.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </>
+                                                )}
+
+                                                {activeTab === 'Weddings' && weddingSubTab === 'Catering' && (
+                                                    <>
+                                                        <tr style={{ background: '#f8fafc' }}>
+                                                            <td colSpan="3" style={{ padding: '15px 25px' }}>
+                                                                            <button onClick={() => { setEditingCatering(null); setCateringForm({ name: '', description: '', price_per_plate: 0, image: '' }); setShowCreateCatering(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Catering Service</button>
+                                                                        </td>
+                                                                    </tr>
+                                                                    {catering.map(c => (
+                                                                        <tr key={c.id} style={layoutStyles.tr}>
+                                                                            <td style={tdStyle}><strong>{c.name}</strong></td>
+                                                                            <td style={tdStyle}>₹{parseFloat(c.price_per_plate).toLocaleString()}</td>
+                                                                            <td style={tdStyle}>
+                                                                                <button onClick={() => { setEditingCatering(c); setCateringForm(c); setShowCreateCatering(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                                <button onClick={() => handleDeleteItem('catering', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </>
+                                                            )}
+
+                                                        {activeTab === 'Weddings' && weddingSubTab === 'Performer' && (
+                                                            <>
+                                                                <tr style={{ background: '#f8fafc' }}>
+                                                                    <td colSpan="4" style={{ padding: '15px 25px' }}>
+                                                                        <button onClick={() => { setEditingPerformer(null); setPerformerForm({ name: '', category: 'Singer', price: 0, image: '', description: '' }); setShowCreatePerformer(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Entertainment</button>
+                                                                    </td>
+                                                                </tr>
+                                                                {performers.map(p => (
+                                                                    <tr key={p.id} style={layoutStyles.tr}>
+                                                                        <td style={tdStyle}><strong>{p.name}</strong></td>
+                                                                        <td style={tdStyle}>{p.category}</td>
+                                                                        <td style={tdStyle}>₹{parseFloat(p.price).toLocaleString()}</td>
+                                                                        <td style={tdStyle}>
+                                                                            <button onClick={() => { setEditingPerformer(p); setPerformerForm(p); setShowCreatePerformer(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                            <button onClick={() => handleDeleteItem('performer', p.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </>
+                                                        )}
+                                                        {activeTab === 'Weddings' && weddingSubTab === 'Ceremonies' && (
+                                                            <>
+                                                                <tr style={{ background: '#f8fafc' }}>
+                                                                    <td colSpan="4" style={{ padding: '15px 25px' }}>
+                                                                        <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
+                                                                    </td>
+                                                                </tr>
+                                                                {weddingEvents.map(e => (
+                                                                    <tr key={e.id} style={layoutStyles.tr}>
+                                                                        <td style={tdStyle}><strong>{e.name}</strong></td>
+                                                                        <td style={tdStyle}>{e.description ? (e.description.substring(0, 50) + '...') : 'No description'}</td>
+                                                                        <td style={tdStyle}>
+                                                                            <span style={{
+                                                                                ...statusBadge,
+                                                                                background: e.is_visible ? '#10B98120' : '#F59E0B20',
+                                                                                color: e.is_visible ? '#10B981' : '#F59E0B'
+                                                                            }}>
+                                                                                {e.is_visible ? 'Visible' : 'Hidden'}
+                                                                            </span>
+                                                                        </td>
+                                                                        <td style={tdStyle}>
+                                                                            <button onClick={() => {
+                                                                                setEditingWeddingEvent(e);
+                                                                                setWeddingEventForm({
+                                                                                    name: e.name,
+                                                                                    description: e.description,
+                                                                                    image: e.image || '',
+                                                                                    is_visible: e.is_visible
+                                                                                });
+                                                                                setShowCreateWeddingEvent(true);
+                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                            <button onClick={() => handleToggleVisibility('wedding-event', e)} style={{ ...actionBtn, background: e.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>{e.is_visible ? '👁️' : '🙈'}</button>
+                                                                            <button onClick={() => handleDeleteItem('wedding-event', e.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                            </>
+                                                        )}
+
+
+                                                        {activeTab === 'Employment' && jobApplications.map(j => {
+                                                            const isAutoRejected = j.status === 'Auto-Rejected';
+                                                            return (
+                                                                <tr key={j.id} style={layoutStyles.tr}>
+                                                                    <td style={tdStyle}>{new Date(j.applied_at).toLocaleDateString()}</td>
+                                                                    <td style={tdStyle}><strong>{j.full_name}</strong></td>
+                                                                    <td style={tdStyle}>{j.position}</td>
+                                                                    <td style={tdStyle}>
+                                                                        <span style={{
+                                                                            ...statusBadge,
+                                                                            background: isAutoRejected ? '#EF444420' : (j.status === 'Hired' ? '#10B98120' : (j.status === 'Rejected' ? '#EF444420' : '#F59E0B20')),
+                                                                            color: isAutoRejected ? '#EF4444' : (j.status === 'Hired' ? '#10B981' : (j.status === 'Rejected' ? '#EF4444' : '#F59E0B'))
+                                                                        }}>
+                                                                            {isAutoRejected ? '⏰ Auto-Rejected' : j.status}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={tdStyle}>
+                                                                        <button
+                                                                            onClick={() => !isAutoRejected && setInspectingBooking({ ...j, _type: 'job' })}
+                                                                            style={{ ...actionBtn, opacity: isAutoRejected ? 0.4 : 1, cursor: isAutoRejected ? 'not-allowed' : 'pointer' }}
+                                                                            title={isAutoRejected ? 'Auto-rejected after 7 days — cannot hire' : 'Review application'}
+                                                                        >Review</button>
+                                                                        <button onClick={() => handleDeleteItem('job', j.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                        {activeTab === 'Blogs' && blogs
+                                                            .filter(b => blogFilter === 'All' || (blogFilter === 'Draft' ? !b.is_published : b.is_published))
+                                                            .map(b => (
+                                                                <tr key={b.id} style={layoutStyles.tr}>
+                                                                    <td style={tdStyle}>{new Date(b.created_at).toLocaleDateString()}</td>
+                                                                    <td style={tdStyle}><strong>{b.title}</strong></td>
+                                                                    <td style={tdStyle}>{b.author}</td>
+                                                                    <td style={tdStyle}>
+                                                                        <span style={{
+                                                                            ...statusBadge,
+                                                                            background: b.is_published ? '#10B98120' : '#F59E0B20',
+                                                                            color: b.is_published ? '#10B981' : '#F59E0B'
+                                                                        }}>
+                                                                            {b.is_published ? '🌐 Live' : '📝 Draft'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={tdStyle}>
+                                                                        <button onClick={() => handleTogglePublish(b)} style={actionBtn}>{b.is_published ? 'Unpublish' : 'Publish'}</button>
+                                                                        <button onClick={() => { setEditingBlog(b); setBlogForm(b); setShowCreateBlog(true); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                        <button onClick={() => handleDeleteItem('blog', b.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        {activeTab === 'Inquiries' && eventInquiries.map(i => (
+                                                            <tr key={i.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}>{new Date(i.created_at).toLocaleDateString()}</td>
+                                                                <td style={tdStyle}><strong>{i.event_type}</strong></td>
+                                                                <td style={tdStyle}>{i.contact_name}</td>
+                                                                <td style={tdStyle}>
+                                                                    <span style={{
+                                                                        ...statusBadge,
+                                                                        background: i.status === 'Reviewed' ? '#10B98120' : '#F59E0B20',
+                                                                        color: i.status === 'Reviewed' ? '#10B981' : '#F59E0B'
+                                                                    }}>
+                                                                        {i.status}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={tdStyle}>
+                                                                    <button onClick={() => setInspectingBooking({ ...i, _type: 'inquiry' })} style={actionBtn}>View</button>
+                                                                    <button onClick={() => handleDeleteItem('inquiry', i.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {activeTab === 'Users' && users.map(u => (
+                                                            <tr key={u.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}><strong>{u.username}</strong></td>
+                                                                <td style={tdStyle}>
+                                                                    <span style={{
+                                                                        ...statusBadge,
+                                                                        background: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF620' : '#3B82F620',
+                                                                        color: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF6' : '#3B82F6'
+                                                                    }}>
+                                                                        {u.is_superuser ? 'ADMIN (Super)' : u.role}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={tdStyle}>{u.email}</td>
+                                                                <td style={tdStyle}>{u.phone || 'N/A'}</td>
+                                                            </tr>
+                                                        ))}
+                                                        {activeTab === 'Gallery' && gallery
+                                                            .filter(g => galleryFilter === 'All' || (galleryFilter === 'Draft' ? !g.is_published : g.is_published))
+                                                            .map(g => (
+                                                                <tr key={g.id} style={layoutStyles.tr}>
+                                                                    <td style={tdStyle}><strong>{g.title}</strong></td>
+                                                                    <td style={tdStyle}>{g.category}</td>
+                                                                    <td style={tdStyle}>
+                                                                        <span style={{
+                                                                            ...statusBadge,
+                                                                            background: g.is_published ? '#10B98120' : '#F59E0B20',
+                                                                            color: g.is_published ? '#10B981' : '#F59E0B'
+                                                                        }}>
+                                                                            {g.is_published ? 'Live' : 'Draft'}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td style={tdStyle}>
+                                                                        <button onClick={() => handleToggleGalleryPublish(g)} style={actionBtn}>{g.is_published ? 'Hide' : 'Show'}</button>
+                                                                        <button onClick={() => handleDeleteItem('gallery', g.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        {activeTab === 'Decorations' && decorations
+                                                            .filter(d => decorFilter === 'All' || d.category === decorFilter)
+                                                            .map(d => (
+                                                                <tr key={d.id} style={layoutStyles.tr}>
+                                                                    <td style={tdStyle}><strong>{d.name}</strong></td>
+                                                                    <td style={tdStyle}>{d.category}</td>
+                                                                    <td style={tdStyle}>₹{parseFloat(d.price).toLocaleString()}</td>
+                                                                    <td style={tdStyle}>
+                                                                        {d.image ? (
+                                                                            <img src={d.image} alt={d.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
+                                                                        ) : 'No Image'}
+                                                                    </td>
+                                                                    <td style={tdStyle}>
+                                                                        <button onClick={() => handleEditDecor(d)} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                        <button onClick={() => handleDeleteItem('decoration', d.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+
+                                                        {activeTab === 'Concerts' && (viewMaster ? concerts : concertBookings).map(c => (
+                                                            <tr key={c.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}>{c.date || c.event_date}</td>
+                                                                <td style={tdStyle}><strong>{c.title || c.concert_title}</strong></td>
+                                                                <td style={tdStyle}>{viewMaster ? c.artist : (c.username || 'User')}</td>
+                                                                <td style={tdStyle}>
+                                                                    {viewMaster ? (c.city) : (
+                                                                        <span style={{
+                                                                            ...statusBadge,
+                                                                            background: c.status === 'Confirmed' ? '#10B98120' : '#F59E0B20',
+                                                                            color: c.status === 'Confirmed' ? '#10B981' : '#F59E0B'
+                                                                        }}>{c.status}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={tdStyle}>
+                                                                    {viewMaster ? (
+                                                                        <>
+                                                                            <button onClick={() => {
+                                                                                setEditingConcert(c);
+                                                                                setConcertForm({
+                                                                                    ...c,
+                                                                                    popularTracks: (c.popularTracks || []).join(', '),
+                                                                                    highlights: Object.entries(c.highlights || {}).map(([k, v]) => `${k}:${v}`).join(', '),
+                                                                                    tickets: (c.tickets || []).map(t => `${t.type}|${t.price}`).join('\n'),
+                                                                                    schedule: (c.schedule || []).map(s => `${s.time}|${s.act}`).join('\n'),
+                                                                                    rules: (c.rules || []).join(', '),
+                                                                                    faqs: (c.faqs || []).map(f => `${f.q}|${f.a}`).join('\n'),
+                                                                                    sponsors: (c.sponsors || []).map(s => `${s.name}|${s.logo}`).join('\n')
+                                                                                });
+                                                                                setShowCreateConcert(true);
+                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                            <button onClick={() => handleToggleVisibility('concert', c)} style={{ ...actionBtn, background: c.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
+                                                                                {c.is_visible ? 'Show 👁️' : 'Hide 🙈'}
+                                                                            </button>
+                                                                            <button onClick={() => handleDeleteItem('concert_master', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button onClick={() => setInspectingBooking({ ...c, _type: 'concert' })} style={actionBtn}>View</button>
+                                                                            <button onClick={() => { setEditingConcertBooking(c); setConcertBookingForm({ status: c.status, ticket_type: c.ticket_type, quantity: c.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                            <button onClick={() => handleDeleteItem('concert', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+
+                                                        {activeTab === 'Festivals' && (viewMaster ? festivals : festivalBookings).map(f => (
+                                                            <tr key={f.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}>{f.startDate || f.booking_date}</td>
+                                                                <td style={tdStyle}><strong>{f.name || f.festival_name}</strong></td>
+                                                                <td style={tdStyle}>{viewMaster ? f.theme : (f.username || 'User')}</td>
+                                                                <td style={tdStyle}>
+                                                                    {viewMaster ? (f.city) : (
+                                                                        <span style={{
+                                                                            ...statusBadge,
+                                                                            background: f.status === 'Confirmed' ? '#10B98120' : '#EF444420',
+                                                                            color: f.status === 'Confirmed' ? '#10B981' : '#EF4444'
+                                                                        }}>{f.status}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={tdStyle}>
+                                                                    {viewMaster ? (
+                                                                        <>
+                                                                            <button onClick={() => {
+                                                                                setEditingFestival(f);
+                                                                                setFestivalForm({
+                                                                                    ...f,
+                                                                                    highlights: (f.highlights || []).map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n'),
+                                                                                    attractions: (f.attractions || []).map(a => `${a.name}|${a.description}`).join('\n'),
+                                                                                    passes: (f.passes || []).map(p => `${p.type}|${p.price}|${p.benefits}|${p.days}`).join('\n'),
+                                                                                    schedule: (f.schedule || []).map(s => `${s.day}|${s.event}`).join('\n'),
+                                                                                    rules: (f.rules || []).join(', '),
+                                                                                    faqs: (f.faqs || []).map(q => `${q.question}|${q.answer}`).join('\n')
+                                                                                });
+                                                                                setShowCreateFestival(true);
+                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                            <button onClick={() => handleToggleVisibility('festival', f)} style={{ ...actionBtn, background: f.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
+                                                                                {f.is_visible ? 'Show 👁️' : 'Hide 🙈'}
+                                                                            </button>
+                                                                            <button onClick={() => handleDeleteItem('festival_master', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button onClick={() => setInspectingBooking({ ...f, _type: 'festival' })} style={actionBtn}>View</button>
+                                                                            <button onClick={() => { setEditingFestivalBooking(f); setFestivalBookingForm({ status: f.status, pass_type: f.pass_type, quantity: f.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                            <button onClick={() => handleDeleteItem('festival', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+
+                                                        {activeTab === 'Sports' && (sportsSubTab === 'Tournaments' ? tournaments : sportsSubTab === 'Fixtures' ? fixtures : registrations).map(r => (
+                                                            <tr key={r.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}>{sportsSubTab === 'Tournaments' ? `${r.start_date}${r.end_date ? ' to ' + r.end_date : ''}` : (r.date || r.registered_at || r.match_date)}</td>
+                                                                <td style={tdStyle}>
+                                                                    <strong>{sportsSubTab === 'Fixtures' ? r.player1_name : (r.name || r.team_name || r.player_name || r.username)}</strong>
+                                                                </td>
+                                                                <td style={tdStyle}>
+                                                                    {sportsSubTab === 'Fixtures' ? r.player2_name : (r.sport || r.tournament_name || 'Individual')}
+                                                                </td>
+                                                                {sportsSubTab === 'Registrations' && (
+                                                                    <td style={{ ...tdStyle, minWidth: '150px' }}>
+                                                                        <div style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>
+                                                                            <div style={{ color: '#3B82F6', fontWeight: '800', marginBottom: '2px' }}>
+                                                                                SQUAD ({r.players?.length || 0}):
+                                                                            </div>
+                                                                            <div style={{ color: '#1E293B', fontWeight: '600' }}>
+                                                                                {r.players?.length > 0 ? r.players.join(', ') : 'No players listed'}
+                                                                            </div>
+
+                                                                            {r.substitutes?.length > 0 && (
+                                                                                <div style={{ marginTop: '5px', borderTop: '1px dashed #E2E8F0', paddingTop: '3px' }}>
+                                                                                    <div style={{ color: '#64748B', fontWeight: '800', fontSize: '0.7rem' }}>
+                                                                                        SUBS ({r.substitutes.length}):
+                                                                                    </div>
+                                                                                    <div style={{ color: '#64748B' }}>
+                                                                                        {r.substitutes.join(', ')}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </td>
+                                                                )}
+                                                                <td style={tdStyle}>
+                                                                    {sportsSubTab === 'Fixtures' ? (
+                                                                        <span style={{ fontWeight: 'bold', color: '#10B981' }}>{r.winner_name || 'TBD'}</span>
+                                                                    ) : sportsSubTab === 'Registrations' && (r.status === 'Winner' || r.status === 'Semi-Finalist') ? (
+                                                                        <div style={{ textAlign: 'center' }}>
+                                                                            <div style={{ ...statusBadge, background: '#10B98120', color: '#10B981' }}>{r.status}</div>
+                                                                            <div style={{ fontSize: '0.75rem', marginTop: '5px', fontWeight: '800', color: r.prize_status === 'Paid' ? '#10B981' : '#F59E0B' }}>
+                                                                                {r.prize_status}: ₹{r.winning_amount}
+                                                                            </div>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span style={{
+                                                                            ...statusBadge,
+                                                                            background: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B98120' : '#F59E0B20',
+                                                                            color: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B981' : '#F59E0B'
+                                                                        }}>{r.status}</span>
+                                                                    )}
+                                                                </td>
+                                                                {sportsSubTab === 'Fixtures' && (
+                                                                    <td style={tdStyle}>
+                                                                        {(() => {
+                                                                            const tourney = tournaments.find(t => t.id === r.tournament);
+                                                                            return (
+                                                                                <span style={{
+                                                                                    fontSize: '0.7rem',
+                                                                                    color: tourney?.status === 'Completed' ? '#10B981' : '#6B7280',
+                                                                                    fontWeight: '800'
+                                                                                }}>
+                                                                                    {tourney?.status.toUpperCase()}
+                                                                                </span>
+                                                                            );
+                                                                        })()}
+                                                                    </td>
+                                                                )}
+                                                                <td style={tdStyle}>
+                                                                    {sportsSubTab === 'Fixtures' ? (
+                                                                        <>
+                                                                            <button onClick={() => {
+                                                                                setEditingFixture(r);
+                                                                                setFixtureForm({
+                                                                                    tournament: r.tournament,
+                                                                                    player1: r.player1 || '',
+                                                                                    player2: r.player2 || '',
+                                                                                    player1_tbd_label: r.player1_tbd_label || '',
+                                                                                    player2_tbd_label: r.player2_tbd_label || '',
+                                                                                    winner: r.winner || '',
+                                                                                    status: r.status,
+                                                                                    match_date: r.match_date ? r.match_date.slice(0, 16) : ''
+                                                                                });
+                                                                                setShowCreateFixture(true);
+                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit/Result</button>
+                                                                            <button onClick={async () => { await api.delete(`/fixtures/${r.id}/`); fetchAllData(); }} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    ) : sportsSubTab === 'Tournaments' ? (
+                                                                        <>
+                                                                            <button onClick={() => { setEditingTournament(r); setTournamentForm({ ...r }); setShowCreateTournament(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                            <button onClick={() => handleDeleteItem('tournament', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button onClick={() => setInspectingBooking({ ...r, _type: 'sports' })} style={actionBtn}>View</button>
+                                                                            <button onClick={() => {
+                                                                                setEditingSportsReg(r);
+                                                                                setSportsRegForm({
+                                                                                    status: r.status,
+                                                                                    team_name: r.team_name || '',
+                                                                                    player_name: r.player_name || '',
+                                                                                    registration_type: r.registration_type,
+                                                                                    winning_amount: r.winning_amount || 0,
+                                                                                    prize_status: r.prize_status || 'Pending'
+                                                                                });
+                                                                            }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                            <button onClick={() => handleDeleteItem('sports', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                        </>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                        {activeTab === 'Trash' && deletedItems
+                                                            .filter(item => trashFilter === 'All' || item._deletedType === trashFilter)
+                                                            .map((item, idx) => (
+                                                                <tr key={`${item.id}-${idx}`} style={layoutStyles.tr}>
+                                                                    <td style={tdStyle}>{new Date(item.booking_date || item.created_at || item.applied_at || item.registration_date).toLocaleDateString()}</td>
+                                                                    <td style={tdStyle}><span style={{ ...statusBadge, background: '#eee', color: '#666' }}>{item._deletedType}</span></td>
+                                                                    <td style={tdStyle}>
+                                                                        <strong>{item.username || item.full_name || item.title || item.name || item.team_name || item.player_name || 'N/A'}</strong>
+                                                                    </td>
+                                                                    <td style={tdStyle}>{item.status || (item.is_published ? 'Published' : 'Draft')}</td>
+                                                                    <td style={tdStyle}>
+                                                                        <button onClick={() => handleRestoreItem(item)} style={{ ...layoutStyles.actionBtnPrimary, padding: '5px 12px', fontSize: '0.75rem' }}>Restore</button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                    </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </>
                     )}
-
-                    {activeTab !== 'Overview' && (
-                        <div style={layoutStyles.card}>
-                            <div style={layoutStyles.cardHeader}>
-                                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '800' }}>
-                                    {activeTab === 'Trash' ? 'RECYCLE BIN' :
-                                        activeTab === 'Weddings' ? `WEDDING ${weddingSubTab.toUpperCase()}` :
-                                            activeTab.toUpperCase() + ' LEDGER'}
-                                </h2>
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                                {activeTab === 'Weddings' && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        {['Bookings', 'Ceremonies', 'Decor', 'Catering', 'Performer'].map(tab => (
-                                            <button
-                                                key={tab}
-                                                onClick={() => {
-                                                    setWeddingSubTab(tab);
-                                                    if (tab === 'Ceremonies') {
-                                                        setViewMaster(true);
-                                                    } else {
-                                                        setViewMaster(false);
-                                                    }
-                                                }}
-                                                style={{
-                                                    ...layoutStyles.actionBtnAlt,
-                                                    background: weddingSubTab === tab ? '#1D3557' : '#f0f0f0',
-                                                    color: weddingSubTab === tab ? '#fff' : '#555',
-                                                    border: 'none'
-                                                }}
-                                            >
-                                                {tab === 'Ceremonies' ? 'Wedding Details' : tab}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                                {activeTab === 'Trash' && (
-                                    <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
-                                        {['All', 'Wedding', 'Job Application', 'Blog', 'Inquiry', 'Decor', 'Gallery', 'Concert', 'Festival', 'Tournament', 'Sports Registration'].map(f => (
-                                            <button
-                                                key={f}
-                                                onClick={() => setTrashFilter(f)}
-                                                style={{
-                                                    ...layoutStyles.actionBtnAlt,
-                                                    background: trashFilter === f ? '#C4A059' : '#f0f0f0',
-                                                    color: trashFilter === f ? '#fff' : '#555',
-                                                    border: 'none',
-                                                    whiteSpace: 'nowrap'
-                                                }}
-                                            >
-                                                {f}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                                {activeTab === 'Blogs' && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        {['All', 'Live', 'Draft'].map(f => (
-                                            <button
-                                                key={f}
-                                                onClick={() => setBlogFilter(f)}
-                                                style={{
-                                                    ...layoutStyles.actionBtnAlt,
-                                                    background: blogFilter === f ? '#3B82F6' : '#f0f0f0',
-                                                    color: blogFilter === f ? '#fff' : '#555',
-                                                    border: 'none',
-                                                    padding: '8px 16px'
-                                                }}
-                                            >
-                                                {f}
-                                            </button>
-                                        ))}
-                                        <button onClick={() => { setShowCreateBlog(true); setEditingBlog(null); setBlogForm({ title: '', content: '', image: '', author: 'Admin', is_published: true }); }} style={layoutStyles.actionBtnPrimary}>+ Write Blog</button>
-                                    </div>
-                                )}
-                                {activeTab === 'Decorations' && (
-                                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                        {['All', 'Wedding', 'Sangeet', 'Mehendi', 'Haldi', 'Reception'].map(f => (
-                                            <button
-                                                key={f}
-                                                onClick={() => setDecorFilter(f)}
-                                                style={{
-                                                    ...layoutStyles.actionBtnAlt,
-                                                    background: decorFilter === f ? '#3B82F6' : '#f0f0f0',
-                                                    color: decorFilter === f ? '#fff' : '#555',
-                                                    border: 'none',
-                                                    padding: '8px 16px'
-                                                }}
-                                            >
-                                                {f}
-                                            </button>
-                                        ))}
-                                        <button onClick={() => { setEditingDecor(null); setDecorForm({ name: '', category: 'Wedding', price: 0, image: '', description: '' }); setShowCreateDecor(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto' }}>+ Add Decor</button>
-                                    </div>
-                                )}
-                                {activeTab === 'Gallery' && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        {['All', 'Live', 'Draft'].map(f => (
-                                            <button
-                                                key={f}
-                                                onClick={() => setGalleryFilter(f)}
-                                                style={{
-                                                    ...layoutStyles.actionBtnAlt,
-                                                    background: galleryFilter === f ? '#10B981' : '#f0f0f0',
-                                                    color: galleryFilter === f ? '#fff' : '#555',
-                                                    border: 'none',
-                                                    padding: '8px 16px'
-                                                }}
-                                            >
-                                                {f}
-                                            </button>
-                                        ))}
-                                        <button onClick={() => setShowCreateGallery(true)} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto' }}>+ Add Photo</button>
-                                    </div>
-                                )}
-                                {(activeTab === 'Concerts' || activeTab === 'Festivals') && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button onClick={() => setViewMaster(false)} style={{ ...layoutStyles.actionBtnAlt, background: !viewMaster ? '#1D3557' : '#f0f0f0', color: !viewMaster ? '#fff' : '#555' }}>Bookings</button>
-                                        <button onClick={() => setViewMaster(true)} style={{ ...layoutStyles.actionBtnAlt, background: viewMaster ? '#1D3557' : '#f0f0f0', color: viewMaster ? '#fff' : '#555' }}>Master Events</button>
-                                        {viewMaster && (
-                                            <button onClick={() => {
-                                                if (activeTab === 'Concerts') {
-                                                    setEditingConcert(null);
-                                                    setConcertForm({
-                                                        title: '', artist: '', artistBio: '', date: defaultPastDate, time: '18:00', venue: '', city: '', genre: '',
-                                                        bannerImage: '', thumbnail: '', description: '', booking_deadline: defaultPastDate,
-                                                        popularTracks: '', highlights: '', tickets: '', schedule: '', rules: '', faqs: '', sponsors: ''
-                                                    });
-                                                    setShowCreateConcert(true);
-                                                } else {
-                                                    setEditingFestival(null);
-                                                    setFestivalForm({
-                                                        name: '', city: '', venue: '', startDate: defaultPastDate, endDate: defaultPastDate, theme: '', image: '', about: '',
-                                                        time: '10:00', booking_deadline: defaultPastDate,
-                                                        highlights: '', attractions: '', passes: '', schedule: '', rules: '', faqs: ''
-                                                    });
-                                                    setShowCreateFestival(true);
-                                                }
-                                            }} style={layoutStyles.actionBtnPrimary}>
-                                                {activeTab === 'Concerts' ? '+ New Concert' : '+ New Festival'}
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {activeTab === 'Sports' && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button onClick={() => setSportsSubTab('Registrations')} style={{ ...layoutStyles.actionBtnAlt, background: sportsSubTab === 'Registrations' ? '#1D3557' : '#f0f0f0', color: sportsSubTab === 'Registrations' ? '#fff' : '#555' }}>Registrations</button>
-                                        <button onClick={() => setSportsSubTab('Tournaments')} style={{ ...layoutStyles.actionBtnAlt, background: sportsSubTab === 'Tournaments' ? '#1D3557' : '#f0f0f0', color: sportsSubTab === 'Tournaments' ? '#fff' : '#555' }}>Tournaments</button>
-                                        <button onClick={() => setSportsSubTab('Fixtures')} style={{ ...layoutStyles.actionBtnAlt, background: sportsSubTab === 'Fixtures' ? '#1D3557' : '#f0f0f0', color: sportsSubTab === 'Fixtures' ? '#fff' : '#555' }}>Fixtures (Matches)</button>
-                                        {sportsSubTab === 'Fixtures' && <button onClick={() => { setEditingFixture(null); setFixtureForm({ tournament: '', player1: '', player2: '', match_date: '', round_number: '1', status: 'Scheduled' }); setShowCreateFixture(true); }} style={layoutStyles.actionBtnPrimary}>+ Create Match</button>}
-                                        {sportsSubTab === 'Tournaments' && <button onClick={() => { setEditingTournament(null); setTournamentForm({ name: '', sport: '', category: 'Team', start_date: '', end_date: '', registration_deadline: '', max_teams: 10, status: 'Registration Open', image: '' }); setShowCreateTournament(true); }} style={layoutStyles.actionBtnPrimary}>+ New Tournament</button>}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={layoutStyles.table}>
-                                <thead style={layoutStyles.thead}>
-                                    {activeTab === 'Blogs' ? (
-                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Title</th><th style={thStyle}>Author</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                    ) : activeTab === 'Employment' ? (
-                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Applicant</th><th style={thStyle}>Role</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                    ) : activeTab === 'Inquiries' ? (
-                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Inquiry Type</th><th style={thStyle}>Client</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                    ) : activeTab === 'Users' ? (
-                                        <tr><th style={thStyle}>Username</th><th style={thStyle}>Role</th><th style={thStyle}>Email</th><th style={thStyle}>Phone</th></tr>
-                                    ) : activeTab === 'Gallery' ? (
-                                        <tr><th style={thStyle}>Title</th><th style={thStyle}>Category</th><th style={thStyle}>Preview</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                    ) : (activeTab === 'Weddings' && weddingSubTab === 'Decor') ? (
-                                        <tr><th style={thStyle}>Name</th><th style={thStyle}>Category</th><th style={thStyle}>Price</th><th style={thStyle}>Preview</th><th style={thStyle}>Action</th></tr>
-                                    ) : (activeTab === 'Weddings' && weddingSubTab === 'Catering') ? (
-                                        <tr><th style={thStyle}>Package Name</th><th style={thStyle}>Price/Plate</th><th style={thStyle}>Preview</th><th style={thStyle}>Action</th></tr>
-                                    ) : (activeTab === 'Weddings' && weddingSubTab === 'Performer') ? (
-                                        <tr><th style={thStyle}>Performer</th><th style={thStyle}>Category</th><th style={thStyle}>Base Price</th><th style={thStyle}>Preview</th><th style={thStyle}>Action</th></tr>
-                                    ) : activeTab === 'Concerts' ? (
-                                        viewMaster ? (
-                                            <tr><th style={thStyle}>Date</th><th style={thStyle}>Concert Name</th><th style={thStyle}>Artist</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
-                                        ) : (
-                                            <tr><th style={thStyle}>Date</th><th style={thStyle}>Event</th><th style={thStyle}>User</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                        )
-                                    ) : activeTab === 'Festivals' ? (
-                                        viewMaster ? (
-                                            <tr><th style={thStyle}>Start Date</th><th style={thStyle}>Festival Name</th><th style={thStyle}>Theme</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
-                                        ) : (
-                                            <tr><th style={thStyle}>Date</th><th style={thStyle}>Festival</th><th style={thStyle}>User</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                        )
-                                    ) : activeTab === 'Sports' ? (
-                                        sportsSubTab === 'Tournaments' ? (
-                                            <tr><th style={thStyle}>Date</th><th style={thStyle}>Tournament</th><th style={thStyle}>Sport</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                        ) : sportsSubTab === 'Fixtures' ? (
-                                            <tr><th style={thStyle}>Match Date</th><th style={thStyle}>P1 / Team1</th><th style={thStyle}>P2 / Team2</th><th style={thStyle}>Winner</th><th style={thStyle}>Status</th><th style={thStyle}>T. Status</th><th style={thStyle}>Action</th></tr>
-                                        ) : (
-                                            <tr><th style={thStyle}>Date</th><th style={thStyle}>Player/Team</th><th style={thStyle}>Tournament</th><th style={thStyle}>Players</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                        )
-                                    ) : (activeTab === 'Weddings' && weddingSubTab === 'Ceremonies') ? (
-                                        <tr><th style={thStyle}>Ceremony Name</th><th style={thStyle}>Description</th><th style={thStyle}>Image URL</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                    ) : activeTab === 'Trash' ? (
-                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Type</th><th style={thStyle}>Title/Owner</th><th style={thStyle}>Original Status</th><th style={thStyle}>Action</th></tr>
-                                    ) : (
-                                        <tr><th style={thStyle}>ID</th><th style={thStyle}>Client</th><th style={thStyle}>Date</th><th style={thStyle}>Total</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                    )}
-                                </thead>
-                                <tbody>
-                                    {activeTab === 'Weddings' && weddingSubTab === 'Bookings' && bookings.map(b => {
-                                        const eventDate = new Date(b.event_date);
-                                        const today = new Date();
-                                        today.setHours(0, 0, 0, 0);
-                                        const isCompleted = eventDate < today && b.status === 'Approved';
-
-                                        return (
-                                            <tr key={b.id} style={layoutStyles.tr}>
-                                                <td style={tdStyle}>#WED-{b.id}</td>
-                                                <td style={tdStyle}><strong>{b.username}</strong></td>
-                                                <td style={tdStyle}>{b.event_date}</td>
-                                                <td style={tdStyle}>₹{parseFloat(b.total_cost || 0).toLocaleString()}</td>
-                                                <td style={tdStyle}>
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: isCompleted ? '#3B82F620' : (b.status === 'Approved' ? '#10B98120' : (b.status === 'Rejected' ? '#EF444420' : '#F59E0B20')),
-                                                        color: isCompleted ? '#3B82F6' : (b.status === 'Approved' ? '#10B981' : (b.status === 'Rejected' ? '#EF4444' : '#F59E0B'))
-                                                    }}>
-                                                        {isCompleted ? '✅ Completed' : b.status}
-                                                    </span>
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <button onClick={() => setInspectingBooking({ ...b, _type: 'wedding' })} style={actionBtn}>Inspect</button>
-                                                    <button onClick={() => handleDeleteItem('wedding', b.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-
-                                    {activeTab === 'Weddings' && weddingSubTab === 'Decor' && (
-                                        <>
-                                            <tr style={{ background: '#f8fafc' }}>
-                                                <td colSpan="5" style={{ padding: '15px 25px' }}>
-                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                        {['All', 'Wedding', 'Sangeet', 'Mehendi', 'Haldi', 'Reception'].map(f => (
-                                                            <button key={f} onClick={() => setDecorFilter(f)} style={{ ...layoutStyles.actionBtnAlt, background: decorFilter === f ? '#3B82F6' : '#fff', color: decorFilter === f ? '#fff' : '#555', padding: '6px 12px', fontSize: '11px' }}>{f}</button>
-                                                        ))}
-                                                        <button onClick={() => { setEditingDecor(null); setDecorForm({ name: '', category: 'Wedding', price: 0, image: '', description: '' }); setShowCreateDecor(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', padding: '8px 16px', fontSize: '11px' }}>+ Add Decor</button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            {decorations.filter(d => decorFilter === 'All' || d.category === decorFilter).map(d => (
-                                                <tr key={d.id} style={layoutStyles.tr}>
-                                                    <td style={tdStyle}><strong>{d.name}</strong></td>
-                                                    <td style={tdStyle}>{d.category}</td>
-                                                    <td style={tdStyle}>₹{parseFloat(d.price).toLocaleString()}</td>
-                                                    <td style={tdStyle}>{d.image ? <img src={d.image} alt={d.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} /> : 'No Image'}</td>
-                                                    <td style={tdStyle}>
-                                                        <button onClick={() => handleEditDecor(d)} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('decoration', d.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </>
-                                    )}
-
-                                    {activeTab === 'Weddings' && weddingSubTab === 'Catering' && (
-                                        <>
-                                            <tr style={{ background: '#f8fafc' }}>
-                                                <td colSpan="4" style={{ padding: '15px 25px' }}>
-                                                    <button onClick={() => { setEditingCatering(null); setCateringForm({ name: '', description: '', price_per_plate: 0, image: '' }); setShowCreateCatering(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Catering Service</button>
-                                                </td>
-                                            </tr>
-                                            {catering.map(c => (
-                                                <tr key={c.id} style={layoutStyles.tr}>
-                                                    <td style={tdStyle}><strong>{c.name}</strong></td>
-                                                    <td style={tdStyle}>₹{parseFloat(c.price_per_plate).toLocaleString()}</td>
-                                                    <td style={tdStyle}>{c.image ? <img src={c.image} alt={c.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} /> : 'No Image'}</td>
-                                                    <td style={tdStyle}>
-                                                        <button onClick={() => { setEditingCatering(c); setCateringForm(c); setShowCreateCatering(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('catering', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </>
-                                    )}
-
-                                    {activeTab === 'Weddings' && weddingSubTab === 'Performer' && (
-                                        <>
-                                            <tr style={{ background: '#f8fafc' }}>
-                                                <td colSpan="5" style={{ padding: '15px 25px' }}>
-                                                    <button onClick={() => { setEditingPerformer(null); setPerformerForm({ name: '', category: 'Singer', price: 0, image: '', description: '' }); setShowCreatePerformer(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Entertainment</button>
-                                                </td>
-                                            </tr>
-                                            {performers.map(p => (
-                                                <tr key={p.id} style={layoutStyles.tr}>
-                                                    <td style={tdStyle}><strong>{p.name}</strong></td>
-                                                    <td style={tdStyle}>{p.category}</td>
-                                                    <td style={tdStyle}>₹{parseFloat(p.price).toLocaleString()}</td>
-                                                    <td style={tdStyle}>{p.image ? <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} /> : 'No Image'}</td>
-                                                    <td style={tdStyle}>
-                                                        <button onClick={() => { setEditingPerformer(p); setPerformerForm(p); setShowCreatePerformer(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('performer', p.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </>
-                                    )}
-                                    {activeTab === 'Weddings' && weddingSubTab === 'Ceremonies' && (
-                                        <>
-                                            <tr style={{ background: '#f8fafc' }}>
-                                                <td colSpan="5" style={{ padding: '15px 25px' }}>
-                                                    <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
-                                                </td>
-                                            </tr>
-                                            {weddingEvents.map(e => (
-                                                <tr key={e.id} style={layoutStyles.tr}>
-                                                    <td style={tdStyle}><strong>{e.name}</strong></td>
-                                                    <td style={tdStyle}>{e.description ? (e.description.substring(0, 50) + '...') : 'No description'}</td>
-                                                    <td style={tdStyle}>{e.image ? <img src={e.image} alt={e.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} /> : 'No Image'}</td>
-                                                    <td style={tdStyle}>
-                                                        <span style={{
-                                                            ...statusBadge,
-                                                            background: e.is_visible ? '#10B98120' : '#F59E0B20',
-                                                            color: e.is_visible ? '#10B981' : '#F59E0B'
-                                                        }}>
-                                                            {e.is_visible ? 'Visible' : 'Hidden'}
-                                                        </span>
-                                                    </td>
-                                                    <td style={tdStyle}>
-                                                        <button onClick={() => { 
-                                                            setEditingWeddingEvent(e); 
-                                                            setWeddingEventForm({
-                                                                name: e.name,
-                                                                description: e.description,
-                                                                image: e.image || '',
-                                                                is_visible: e.is_visible
-                                                            }); 
-                                                            setShowCreateWeddingEvent(true); 
-                                                        }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleToggleVisibility('wedding-event', e)} style={{ ...actionBtn, background: e.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>{e.is_visible ? '👁️' : '🙈'}</button>
-                                                        <button onClick={() => handleDeleteItem('wedding-event', e.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </>
-                                    )}
-
-
-                                    {activeTab === 'Employment' && jobApplications.map(j => {
-                                        const isAutoRejected = j.status === 'Auto-Rejected';
-                                        return (
-                                            <tr key={j.id} style={layoutStyles.tr}>
-                                                <td style={tdStyle}>{new Date(j.applied_at).toLocaleDateString()}</td>
-                                                <td style={tdStyle}><strong>{j.full_name}</strong></td>
-                                                <td style={tdStyle}>{j.position}</td>
-                                                <td style={tdStyle}>
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: isAutoRejected ? '#EF444420' : (j.status === 'Hired' ? '#10B98120' : (j.status === 'Rejected' ? '#EF444420' : '#F59E0B20')),
-                                                        color: isAutoRejected ? '#EF4444' : (j.status === 'Hired' ? '#10B981' : (j.status === 'Rejected' ? '#EF4444' : '#F59E0B'))
-                                                    }}>
-                                                        {isAutoRejected ? '⏰ Auto-Rejected' : j.status}
-                                                    </span>
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <button
-                                                        onClick={() => !isAutoRejected && setInspectingBooking({ ...j, _type: 'job' })}
-                                                        style={{ ...actionBtn, opacity: isAutoRejected ? 0.4 : 1, cursor: isAutoRejected ? 'not-allowed' : 'pointer' }}
-                                                        title={isAutoRejected ? 'Auto-rejected after 7 days — cannot hire' : 'Review application'}
-                                                    >Review</button>
-                                                    <button onClick={() => handleDeleteItem('job', j.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                    {activeTab === 'Blogs' && blogs
-                                        .filter(b => blogFilter === 'All' || (blogFilter === 'Draft' ? !b.is_published : b.is_published))
-                                        .map(b => (
-                                            <tr key={b.id} style={layoutStyles.tr}>
-                                                <td style={tdStyle}>{new Date(b.created_at).toLocaleDateString()}</td>
-                                                <td style={tdStyle}><strong>{b.title}</strong></td>
-                                                <td style={tdStyle}>{b.author}</td>
-                                                <td style={tdStyle}>
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: b.is_published ? '#10B98120' : '#F59E0B20',
-                                                        color: b.is_published ? '#10B981' : '#F59E0B'
-                                                    }}>
-                                                        {b.is_published ? '🌐 Live' : '📝 Draft'}
-                                                    </span>
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <button onClick={() => handleTogglePublish(b)} style={actionBtn}>{b.is_published ? 'Unpublish' : 'Publish'}</button>
-                                                    <button onClick={() => { setEditingBlog(b); setBlogForm(b); setShowCreateBlog(true); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                    <button onClick={() => handleDeleteItem('blog', b.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    {activeTab === 'Inquiries' && eventInquiries.map(i => (
-                                        <tr key={i.id} style={layoutStyles.tr}>
-                                            <td style={tdStyle}>{new Date(i.created_at).toLocaleDateString()}</td>
-                                            <td style={tdStyle}><strong>{i.event_type}</strong></td>
-                                            <td style={tdStyle}>{i.contact_name}</td>
-                                            <td style={tdStyle}>
-                                                <span style={{
-                                                    ...statusBadge,
-                                                    background: i.status === 'Reviewed' ? '#10B98120' : '#F59E0B20',
-                                                    color: i.status === 'Reviewed' ? '#10B981' : '#F59E0B'
-                                                }}>
-                                                    {i.status}
-                                                </span>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                <button onClick={() => setInspectingBooking({ ...i, _type: 'inquiry' })} style={actionBtn}>View</button>
-                                                <button onClick={() => handleDeleteItem('inquiry', i.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {activeTab === 'Users' && users.map(u => (
-                                        <tr key={u.id} style={layoutStyles.tr}>
-                                            <td style={tdStyle}><strong>{u.username}</strong></td>
-                                            <td style={tdStyle}>
-                                                <span style={{
-                                                    ...statusBadge,
-                                                    background: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF620' : '#3B82F620',
-                                                    color: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF6' : '#3B82F6'
-                                                }}>
-                                                    {u.is_superuser ? 'ADMIN (Super)' : u.role}
-                                                </span>
-                                            </td>
-                                            <td style={tdStyle}>{u.email}</td>
-                                            <td style={tdStyle}>{u.phone || 'N/A'}</td>
-                                        </tr>
-                                    ))}
-                                    {activeTab === 'Gallery' && gallery
-                                        .filter(g => galleryFilter === 'All' || (galleryFilter === 'Draft' ? !g.is_published : g.is_published))
-                                        .map(g => (
-                                            <tr key={g.id} style={layoutStyles.tr}>
-                                                <td style={tdStyle}><strong>{g.title}</strong></td>
-                                                <td style={tdStyle}>{g.category}</td>
-                                                <td style={tdStyle}>
-                                                    {(g.image || g.image_url) ? (
-                                                        <img src={g.image || g.image_url} alt={g.title} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'contain' }} />
-                                                    ) : 'No Image'}
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: g.is_published ? '#10B98120' : '#F59E0B20',
-                                                        color: g.is_published ? '#10B981' : '#F59E0B'
-                                                    }}>
-                                                        {g.is_published ? 'Live' : 'Draft'}
-                                                    </span>
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <button onClick={() => handleToggleGalleryPublish(g)} style={actionBtn}>{g.is_published ? 'Hide' : 'Show'}</button>
-                                                    <button onClick={() => handleDeleteItem('gallery', g.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    {activeTab === 'Decorations' && decorations
-                                        .filter(d => decorFilter === 'All' || d.category === decorFilter)
-                                        .map(d => (
-                                            <tr key={d.id} style={layoutStyles.tr}>
-                                                <td style={tdStyle}><strong>{d.name}</strong></td>
-                                                <td style={tdStyle}>{d.category}</td>
-                                                <td style={tdStyle}>₹{parseFloat(d.price).toLocaleString()}</td>
-                                                <td style={tdStyle}>
-                                                    {d.image ? (
-                                                        <img src={d.image} alt={d.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
-                                                    ) : 'No Image'}
-                                                </td>
-                                                <td style={tdStyle}>
-                                                    <button onClick={() => handleEditDecor(d)} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                    <button onClick={() => handleDeleteItem('decoration', d.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-
-                                    {activeTab === 'Concerts' && (viewMaster ? concerts : concertBookings).map(c => (
-                                        <tr key={c.id} style={layoutStyles.tr}>
-                                            <td style={tdStyle}>{c.date || c.event_date}</td>
-                                            <td style={tdStyle}><strong>{c.title || c.concert_title}</strong></td>
-                                            <td style={tdStyle}>{viewMaster ? c.artist : (c.username || 'User')}</td>
-                                            <td style={tdStyle}>
-                                                {viewMaster ? (c.city) : (
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: c.status === 'Confirmed' ? '#10B98120' : '#F59E0B20',
-                                                        color: c.status === 'Confirmed' ? '#10B981' : '#F59E0B'
-                                                    }}>{c.status}</span>
-                                                )}
-                                            </td>
-                                            <td style={tdStyle}>
-                                                {viewMaster ? (
-                                                    <>
-                                                        <button onClick={() => {
-                                                            setEditingConcert(c);
-                                                            setConcertForm({
-                                                                ...c,
-                                                                popularTracks: (c.popularTracks || []).join(', '),
-                                                                highlights: Object.entries(c.highlights || {}).map(([k, v]) => `${k}:${v}`).join(', '),
-                                                                tickets: (c.tickets || []).map(t => `${t.type}|${t.price}`).join('\n'),
-                                                                schedule: (c.schedule || []).map(s => `${s.time}|${s.act}`).join('\n'),
-                                                                rules: (c.rules || []).join(', '),
-                                                                faqs: (c.faqs || []).map(f => `${f.q}|${f.a}`).join('\n'),
-                                                                sponsors: (c.sponsors || []).map(s => `${s.name}|${s.logo}`).join('\n')
-                                                            });
-                                                            setShowCreateConcert(true);
-                                                        }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleToggleVisibility('concert', c)} style={{ ...actionBtn, background: c.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
-                                                            {c.is_visible ? 'Show 👁️' : 'Hide 🙈'}
-                                                        </button>
-                                                        <button onClick={() => handleDeleteItem('concert_master', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <button onClick={() => setInspectingBooking({ ...c, _type: 'concert' })} style={actionBtn}>View</button>
-                                                        <button onClick={() => { setEditingConcertBooking(c); setConcertBookingForm({ status: c.status, ticket_type: c.ticket_type, quantity: c.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('concert', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-
-                                    {activeTab === 'Festivals' && (viewMaster ? festivals : festivalBookings).map(f => (
-                                        <tr key={f.id} style={layoutStyles.tr}>
-                                            <td style={tdStyle}>{f.startDate || f.booking_date}</td>
-                                            <td style={tdStyle}><strong>{f.name || f.festival_name}</strong></td>
-                                            <td style={tdStyle}>{viewMaster ? f.theme : (f.username || 'User')}</td>
-                                            <td style={tdStyle}>
-                                                {viewMaster ? (f.city) : (
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: f.status === 'Confirmed' ? '#10B98120' : '#EF444420',
-                                                        color: f.status === 'Confirmed' ? '#10B981' : '#EF4444'
-                                                    }}>{f.status}</span>
-                                                )}
-                                            </td>
-                                            <td style={tdStyle}>
-                                                {viewMaster ? (
-                                                    <>
-                                                        <button onClick={() => {
-                                                            setEditingFestival(f);
-                                                            setFestivalForm({
-                                                                ...f,
-                                                                highlights: (f.highlights || []).map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n'),
-                                                                attractions: (f.attractions || []).map(a => `${a.name}|${a.description}`).join('\n'),
-                                                                passes: (f.passes || []).map(p => `${p.type}|${p.price}|${p.benefits}|${p.days}`).join('\n'),
-                                                                schedule: (f.schedule || []).map(s => `${s.day}|${s.event}`).join('\n'),
-                                                                rules: (f.rules || []).join(', '),
-                                                                faqs: (f.faqs || []).map(q => `${q.question}|${q.answer}`).join('\n')
-                                                            });
-                                                            setShowCreateFestival(true);
-                                                        }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleToggleVisibility('festival', f)} style={{ ...actionBtn, background: f.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
-                                                            {f.is_visible ? 'Show 👁️' : 'Hide 🙈'}
-                                                        </button>
-                                                        <button onClick={() => handleDeleteItem('festival_master', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <button onClick={() => setInspectingBooking({ ...f, _type: 'festival' })} style={actionBtn}>View</button>
-                                                        <button onClick={() => { setEditingFestivalBooking(f); setFestivalBookingForm({ status: f.status, pass_type: f.pass_type, quantity: f.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('festival', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-
-                                    {activeTab === 'Sports' && (sportsSubTab === 'Tournaments' ? tournaments : sportsSubTab === 'Fixtures' ? fixtures : registrations).map(r => (
-                                        <tr key={r.id} style={layoutStyles.tr}>
-                                            <td style={tdStyle}>{sportsSubTab === 'Tournaments' ? `${r.start_date}${r.end_date ? ' to ' + r.end_date : ''}` : (r.date || r.registered_at || r.match_date)}</td>
-                                            <td style={tdStyle}>
-                                                <strong>{sportsSubTab === 'Fixtures' ? r.player1_name : (r.name || r.team_name || r.player_name || r.username)}</strong>
-                                            </td>
-                                            <td style={tdStyle}>
-                                                {sportsSubTab === 'Fixtures' ? r.player2_name : (r.sport || r.tournament_name || 'Individual')}
-                                            </td>
-                                            {sportsSubTab === 'Registrations' && (
-                                                <td style={{ ...tdStyle, minWidth: '150px' }}>
-                                                    <div style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>
-                                                        <div style={{ color: '#3B82F6', fontWeight: '800', marginBottom: '2px' }}>
-                                                            SQUAD ({r.players?.length || 0}):
-                                                        </div>
-                                                        <div style={{ color: '#1E293B', fontWeight: '600' }}>
-                                                            {r.players?.length > 0 ? r.players.join(', ') : 'No players listed'}
-                                                        </div>
-                                                        
-                                                        {r.substitutes?.length > 0 && (
-                                                            <div style={{ marginTop: '5px', borderTop: '1px dashed #E2E8F0', paddingTop: '3px' }}>
-                                                                <div style={{ color: '#64748B', fontWeight: '800', fontSize: '0.7rem' }}>
-                                                                    SUBS ({r.substitutes.length}):
-                                                                </div>
-                                                                <div style={{ color: '#64748B' }}>
-                                                                    {r.substitutes.join(', ')}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            )}
-                                            <td style={tdStyle}>
-                                                {sportsSubTab === 'Fixtures' ? (
-                                                    <span style={{ fontWeight: 'bold', color: '#10B981' }}>{r.winner_name || 'TBD'}</span>
-                                                ) : sportsSubTab === 'Registrations' && (r.status === 'Winner' || r.status === 'Semi-Finalist') ? (
-                                                    <div style={{ textAlign: 'center' }}>
-                                                        <div style={{ ...statusBadge, background: '#10B98120', color: '#10B981' }}>{r.status}</div>
-                                                        <div style={{ fontSize: '0.75rem', marginTop: '5px', fontWeight: '800', color: r.prize_status === 'Paid' ? '#10B981' : '#F59E0B' }}>
-                                                            {r.prize_status}: ₹{r.winning_amount}
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    <span style={{
-                                                        ...statusBadge,
-                                                        background: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B98120' : '#F59E0B20',
-                                                        color: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B981' : '#F59E0B'
-                                                    }}>{r.status}</span>
-                                                )}
-                                            </td>
-                                            {sportsSubTab === 'Fixtures' && (
-                                                <td style={tdStyle}>
-                                                    {(() => {
-                                                        const tourney = tournaments.find(t => t.id === r.tournament);
-                                                        return (
-                                                            <span style={{ 
-                                                                fontSize: '0.7rem', 
-                                                                color: tourney?.status === 'Completed' ? '#10B981' : '#6B7280',
-                                                                fontWeight: '800'
-                                                            }}>
-                                                                {tourney?.status.toUpperCase()}
-                                                            </span>
-                                                        );
-                                                    })()}
-                                                </td>
-                                            )}
-                                            <td style={tdStyle}>
-                                                {sportsSubTab === 'Fixtures' ? (
-                                                    <>
-                                                        <button onClick={() => { 
-                                                            setEditingFixture(r); 
-                                                            setFixtureForm({ 
-                                                                tournament: r.tournament,
-                                                                player1: r.player1 || '',
-                                                                player2: r.player2 || '',
-                                                                player1_tbd_label: r.player1_tbd_label || '',
-                                                                player2_tbd_label: r.player2_tbd_label || '',
-                                                                winner: r.winner || '', 
-                                                                status: r.status,
-                                                                match_date: r.match_date ? r.match_date.slice(0, 16) : ''
-                                                            }); 
-                                                            setShowCreateFixture(true); 
-                                                        }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit/Result</button>
-                                                        <button onClick={async () => { await api.delete(`/fixtures/${r.id}/`); fetchAllData(); }} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                ) : sportsSubTab === 'Tournaments' ? (
-                                                    <>
-                                                        <button onClick={() => { setEditingTournament(r); setTournamentForm({ ...r }); setShowCreateTournament(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('tournament', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <button onClick={() => setInspectingBooking({ ...r, _type: 'sports' })} style={actionBtn}>View</button>
-                                                        <button onClick={() => { 
-                                                            setEditingSportsReg(r); 
-                                                            setSportsRegForm({ 
-                                                                status: r.status, 
-                                                                team_name: r.team_name || '', 
-                                                                player_name: r.player_name || '', 
-                                                                registration_type: r.registration_type,
-                                                                winning_amount: r.winning_amount || 0,
-                                                                prize_status: r.prize_status || 'Pending'
-                                                            }); 
-                                                        }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                        <button onClick={() => handleDeleteItem('sports', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                    </>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {activeTab === 'Trash' && deletedItems
-                                        .filter(item => trashFilter === 'All' || item._deletedType === trashFilter)
-                                        .map((item, idx) => (
-                                            <tr key={`${item.id}-${idx}`} style={layoutStyles.tr}>
-                                                <td style={tdStyle}>{new Date(item.booking_date || item.created_at || item.applied_at || item.registration_date).toLocaleDateString()}</td>
-                                                <td style={tdStyle}><span style={{ ...statusBadge, background: '#eee', color: '#666' }}>{item._deletedType}</span></td>
-                                                <td style={tdStyle}>
-                                                    <strong>{item.username || item.full_name || item.title || item.name || item.team_name || item.player_name || 'N/A'}</strong>
-                                                </td>
-                                                <td style={tdStyle}>{item.status || (item.is_published ? 'Published' : 'Draft')}</td>
-                                                <td style={tdStyle}>
-                                                    <button onClick={() => handleRestoreItem(item)} style={{ ...layoutStyles.actionBtnPrimary, padding: '5px 12px', fontSize: '0.75rem' }}>Restore</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                </tbody>
-                            </table>
-                        </div>
-                        </div>
-                    )}
-                    </>
-                )}
                 </div>
             </main>
 
@@ -1888,82 +1882,120 @@ const SimpleAdminDashboard = () => {
                                 )}
 
                                 {inspectingBooking._type === 'wedding' && (
-                                    <>
-                                        <div style={{ padding: '20px', background: '#F9FAFB', borderRadius: '15px', border: '1px solid #eee', marginBottom: '20px' }}>
-                                            <h4 style={{ margin: '0 0 15px 0', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}><span>✨</span> Financial Breakdown</h4>
-                                            <BillRow label="Catering Services" sub={inspectingBooking.catering_package || 'Standard Package'} value={inspectingBooking.catering_price} />
-                                            <BillRow label="Decor & Ambiance" sub={inspectingBooking.decoration_name || 'Standard Decor'} value={inspectingBooking.decoration_price} />
-                                            <BillRow label="Live Performers" sub={inspectingBooking.performer_name || 'None Selected'} value={inspectingBooking.performer_price} />
-                                            <div style={{ borderTop: '1px dashed #ddd', margin: '10px 0' }}></div>
-                                            <BillRow label="Subtotal" value={inspectingBooking.total_cost} bold />
-                                            <BillRow label="Advance Paid" value={inspectingBooking.advance_amount} color="#10B981" />
-                                            <BillRow label="Balance Remaining" value={inspectingBooking.balance_amount} color="#F59E0B" />
-                                            <div style={{ borderTop: '2px solid #ddd', marginTop: '10px', paddingTop: '10px' }}>
-                                                <BillRow label="GRAND TOTAL" value={inspectingBooking.total_cost} bold big color="#EF4444" />
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                                        {/* Couple Identity Section */}
+                                        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', background: 'linear-gradient(135deg, #1D3557, #457B9D)', padding: '25px', borderRadius: '15px', color: '#fff' }}>
+                                            <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>🤵👰</div>
+                                            <div>
+                                                <h3 style={{ margin: 0, fontSize: '1.4rem', fontWeight: '900' }}>
+                                                    {inspectingBooking.wedding_details?.brideName || 'Bride'} & {inspectingBooking.wedding_details?.groomName || 'Groom'}
+                                                </h3>
+                                                <p style={{ margin: '5px 0 0 0', fontSize: '0.85rem', opacity: 0.9 }}>
+                                                    Wedding Booking ID: <span style={{ fontWeight: '800' }}>#WED-{inspectingBooking.id}</span>
+                                                </p>
                                             </div>
-                                            <div style={{ marginTop: '10px', textAlign: 'right', fontSize: '0.8rem', fontWeight: 'bold', color: inspectingBooking.payment_status === 'Fully Paid' ? '#10B981' : '#F59E0B' }}>
-                                                Payment Status: {inspectingBooking.payment_status}
-                                            </div>
-                                        </div>
-                                        <div style={{ background: '#fff', border: '1px solid #E2E8F0', padding: '20px', borderRadius: '15px' }}>
-                                            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '5px' }}>✨ Event Scope</label>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '10px' }}>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Event Type:</span> <br /> <strong>{inspectingBooking.event_type || 'Wedding'}</strong></div>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Wedding Date:</span> <br /> <strong>{inspectingBooking.wedding_details?.weddingDate || inspectingBooking.event_date}</strong></div>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Venue:</span> <br /> <strong>{inspectingBooking.wedding_details?.venueName || 'Imperial Hall'}</strong></div>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Destination:</span> <br /> <strong>{inspectingBooking.wedding_details?.isDestinationWedding || 'No'}</strong></div>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Guests:</span> <br /> <strong>{inspectingBooking.guests || inspectingBooking.wedding_details?.guestCount}</strong></div>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Theme:</span> <br /> <strong>{inspectingBooking.wedding_details?.weddingTheme || 'Classic Royal'}</strong></div>
-                                            </div>
-                                            {inspectingBooking.wedding_details?.notes && (
-                                                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-                                                    <span style={{ fontSize: '0.8rem', color: '#718096' }}>Custom Requests:</span>
-                                                    <p style={{ marginTop: '5px', fontSize: '0.85rem' }}>{inspectingBooking.wedding_details.notes}</p>
-                                                </div>
-                                            )}
-
-                                            {/* 7-Day Auto Reject Warning */}
-                                            {inspectingBooking.status === 'Pending' && (
+                                            <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
                                                 <div style={{
-                                                    marginTop: '15px',
-                                                    padding: '10px 15px',
-                                                    background: '#FFFBEB',
-                                                    borderLeft: '4px solid #F59E0B',
-                                                    borderRadius: '8px'
+                                                    padding: '6px 15px',
+                                                    borderRadius: '50px',
+                                                    background: 'rgba(255,255,255,0.15)',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: '900',
+                                                    letterSpacing: '1px'
                                                 }}>
-                                                    <div style={{ fontSize: '0.8rem', fontWeight: '900', color: '#92400E' }}>⚠️ ACTION REQUIRED</div>
-                                                    <div style={{ fontSize: '0.75rem', color: '#B45309' }}>
-                                                        This booking was received on {new Date(inspectingBooking.booking_date).toLocaleDateString()}.
-                                                        Must be Approved or Rejected within 7 days otherwise it will be auto-rejected.
-                                                    </div>
+                                                    {inspectingBooking.status.toUpperCase()}
                                                 </div>
-                                            )}
-                                        </div>
-
-                                        <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '20px', borderRadius: '15px', marginTop: '20px' }}>
-                                            <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '5px' }}>✨ Thematic Details</label>
-                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '10px' }}>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Color Palette:</span> <br /> <strong>{inspectingBooking.wedding_details?.colorPreferences || 'TBD'}</strong></div>
-                                                <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Cultural/Special:</span> <br /> <strong>{inspectingBooking.wedding_details?.culturalRequirements || 'None'}</strong></div>
                                             </div>
+                                        </div>
 
-                                            {inspectingBooking.wedding_details?.eventsRequired && (
-                                                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-                                                    <span style={{ fontSize: '0.8rem', color: '#718096' }}>Required Events:</span>
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
-                                                        {Object.entries(inspectingBooking.wedding_details.eventsRequired)
-                                                            .filter(([_, value]) => value === true)
-                                                            .map(([key]) => (
-                                                                <span key={key} style={{ padding: '4px 12px', background: '#C4A05920', color: '#C4A059', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                                                                    {key}
-                                                                </span>
-                                                            ))
-                                                        }
+                                        {/* Core Logistics Grid */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px' }}>
+                                            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                <label style={{ ...labelStyle, fontSize: '0.65rem' }}>🗓️ WEDDING DATE</label>
+                                                <p style={{ ...textValueStyle, fontSize: '1rem', marginTop: '5px' }}>{inspectingBooking.wedding_details?.weddingDate || inspectingBooking.event_date}</p>
+                                            </div>
+                                            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                <label style={{ ...labelStyle, fontSize: '0.65rem' }}>📍 PREFERRED VENUE</label>
+                                                <p style={{ ...textValueStyle, fontSize: '0.9rem', marginTop: '5px' }}>{inspectingBooking.wedding_details?.venueName || 'Imperial Hall'}</p>
+                                            </div>
+                                            <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                                                <label style={{ ...labelStyle, fontSize: '0.65rem' }}>👥 GUEST LIST</label>
+                                                <p style={{ ...textValueStyle, fontSize: '1rem', marginTop: '5px' }}>{inspectingBooking.guests || inspectingBooking.wedding_details?.guestCount} People</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Financial Summary Card */}
+                                        <div style={{ padding: '25px', background: '#fff', borderRadius: '15px', border: '2px solid #F1F5F9', boxShadow: '0 4px 15px rgba(0,0,0,0.02)' }}>
+                                            <h4 style={{ margin: '0 0 20px 0', fontSize: '0.9rem', fontWeight: '900', color: '#1E293B', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <span style={{ background: '#3B82F6', width: '25px', height: '25px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '0.7rem' }}>₹</span>
+                                                Financial Master Breakdown
+                                            </h4>
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                                <BillRow label="Catering Services" sub={inspectingBooking.catering_package || 'Standard Package'} value={inspectingBooking.catering_price} />
+                                                <BillRow label="Decor & Ambiance" sub={inspectingBooking.decoration_name || "Designer's Choice"} value={inspectingBooking.decoration_price} />
+                                                <BillRow label="Live Entertainment" sub={inspectingBooking.performer_name || 'None Selected'} value={inspectingBooking.performer_price} />
+
+                                                <div style={{ margin: '10px 0', borderTop: '2px dashed #E2E8F0' }}></div>
+
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '1rem', fontWeight: '900', color: '#0F172A' }}>Estimated Subtotal</span>
+                                                    <span style={{ fontSize: '1.2rem', fontWeight: '900', color: '#10B981' }}>₹{parseFloat(inspectingBooking.total_cost || 0).toLocaleString()}</span>
+                                                </div>
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '10px' }}>
+                                                    <div style={{ background: 'rgba(16, 185, 129, 0.05)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.1)' }}>
+                                                        <span style={{ fontSize: '0.6rem', color: '#10B981', fontWeight: '900' }}>ADVANCE PAID</span>
+                                                        <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#065F46' }}>₹{parseFloat(inspectingBooking.advance_amount || 0).toLocaleString()}</div>
+                                                    </div>
+                                                    <div style={{ background: 'rgba(245, 158, 11, 0.05)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(245, 158, 11, 0.1)' }}>
+                                                        <span style={{ fontSize: '0.6rem', color: '#F59E0B', fontWeight: '900' }}>PENDING BALANCE</span>
+                                                        <div style={{ fontSize: '0.9rem', fontWeight: '800', color: '#92400E' }}>₹{parseFloat(inspectingBooking.balance_amount || 0).toLocaleString()}</div>
                                                     </div>
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
-                                    </>
+
+                                        {/* Requirements & Themes */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                                            <div style={{ background: '#F8FAFC', padding: '20px', borderRadius: '15px', border: '1px solid #E2E8F0' }}>
+                                                <label style={{ ...labelStyle, color: '#3B82F6' }}>🎨 STYLE & THEME</label>
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <div style={{ marginBottom: '10px' }}>
+                                                        <span style={{ fontSize: '0.7rem', color: '#718096', fontWeight: '800' }}>THEME:</span>
+                                                        <div style={{ fontWeight: '700' }}>{inspectingBooking.wedding_details?.weddingTheme || 'Not Specified'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <span style={{ fontSize: '0.7rem', color: '#718096', fontWeight: '800' }}>PALETTE:</span>
+                                                        <div style={{ fontWeight: '700' }}>{inspectingBooking.wedding_details?.colorPreferences || 'TBD'}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div style={{ background: '#FFF7ED', padding: '20px', borderRadius: '15px', border: '1px solid #FFEDD5' }}>
+                                                <label style={{ ...labelStyle, color: '#EA580C' }}>📜 CUSTOM REQUESTS</label>
+                                                <p style={{ fontSize: '0.85rem', color: '#9A3412', marginTop: '10px', lineHeight: '1.5' }}>
+                                                    {inspectingBooking.wedding_details?.notes || 'No special instructions provided by the client.'}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Ceremony Checklist */}
+                                        {inspectingBooking.wedding_details?.eventsRequired && (
+                                            <div style={{ border: '1px solid #E2E8F0', borderRadius: '15px', padding: '20px' }}>
+                                                <label style={labelStyle}>🔔 SELECTED CEREMONIES</label>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                                                    {Object.entries(inspectingBooking.wedding_details.eventsRequired)
+                                                        .filter(([_, value]) => value === true)
+                                                        .map(([key]) => (
+                                                            <span key={key} style={{ padding: '6px 14px', background: '#F1F5F9', color: '#475569', borderRadius: '50px', fontSize: '0.75rem', fontWeight: '900', border: '1px solid #E2E8F0' }}>
+                                                                {key.toUpperCase()}
+                                                            </span>
+                                                        ))
+                                                    }
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
 
                                 {inspectingBooking._type === 'concert' && (
@@ -2102,11 +2134,9 @@ const SimpleAdminDashboard = () => {
                                         <option value="Wedding">Wedding</option>
                                         <option value="Sangeet">Sangeet</option>
                                         <option value="Mehendi">Mehendi</option>
-                                        <option value="Reception">Reception</option>
                                         <option value="Decor">Decor</option>
                                     </select>
                                 </div>
-                                <div><label style={labelStyle}>Image URL</label><input style={inputStyle} value={galleryForm.image_url} onChange={e => setGalleryForm({ ...galleryForm, image_url: e.target.value })} /></div>
                                 <div><label style={labelStyle}>Description</label><textarea style={{ ...inputStyle, minHeight: '100px' }} value={galleryForm.description} onChange={e => setGalleryForm({ ...galleryForm, description: e.target.value })} /></div>
                                 <div style={{ display: 'flex', gap: '15px' }}>
                                     <button onClick={() => { setGalleryForm({ ...galleryForm, is_published: true }); setTimeout(handleGallerySubmit, 100); }} style={{ ...layoutStyles.actionBtnPrimary, padding: '18px', flex: 2, background: '#10B981' }}>🚀 UPLOAD LIVE</button>
@@ -2143,7 +2173,6 @@ const SimpleAdminDashboard = () => {
                                                     <option value="Sangeet Ceremony">Sangeet Ceremony</option>
                                                     <option value="Mehendi Ceremony">Mehendi Ceremony</option>
                                                     <option value="Haldi Ceremony">Haldi Ceremony</option>
-                                                    <option value="Reception Ceremony">Reception Ceremony</option>
                                                 </>
                                             )}
                                             <option value="Other">Other</option>
@@ -2152,7 +2181,7 @@ const SimpleAdminDashboard = () => {
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div><label style={labelStyle}>Price (₹)</label><input type="number" style={inputStyle} value={decorForm.price} onChange={e => setDecorForm({ ...decorForm, price: e.target.value })} /></div>
-                                    <div><label style={labelStyle}>Preview URL</label><input style={inputStyle} value={decorForm.image} onChange={e => setDecorForm({ ...decorForm, image: e.target.value })} /></div>
+                                    <div><label style={labelStyle}>Image URL</label><input style={inputStyle} placeholder="https://..." value={decorForm.image} onChange={e => setDecorForm({ ...decorForm, image: e.target.value })} /></div>
                                 </div>
                                 <div><label style={labelStyle}>Description / Details</label><textarea style={{ ...inputStyle, minHeight: '100px' }} value={decorForm.description} onChange={e => setDecorForm({ ...decorForm, description: e.target.value })} /></div>
                                 <button onClick={handleDecorSubmit} style={{ ...layoutStyles.actionBtnPrimary, padding: '18px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' }}> {editingDecor ? 'Update Decoration' : '🚀 ADD DECORATION OPTION'}</button>
@@ -2174,7 +2203,7 @@ const SimpleAdminDashboard = () => {
                                 <div><label style={labelStyle}>Package Name</label><input style={inputStyle} value={cateringForm.name} onChange={e => setCateringForm({ ...cateringForm, name: e.target.value })} /></div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div><label style={labelStyle}>Price per Plate (₹)</label><input type="number" style={inputStyle} value={cateringForm.price_per_plate} onChange={e => setCateringForm({ ...cateringForm, price_per_plate: e.target.value })} /></div>
-                                    <div><label style={labelStyle}>Preview URL</label><input style={inputStyle} value={cateringForm.image} onChange={e => setCateringForm({ ...cateringForm, image: e.target.value })} /></div>
+                                    <div><label style={labelStyle}>Image URL</label><input style={inputStyle} placeholder="https://..." value={cateringForm.image} onChange={e => setCateringForm({ ...cateringForm, image: e.target.value })} /></div>
                                 </div>
                                 <div><label style={labelStyle}>Description / Menu Highlights</label><textarea style={{ ...inputStyle, minHeight: '100px' }} value={cateringForm.description} onChange={e => setCateringForm({ ...cateringForm, description: e.target.value })} /></div>
                                 <button onClick={handleCateringSubmit} style={{ ...layoutStyles.actionBtnPrimary, padding: '18px', background: '#10B981' }}> {editingCatering ? 'Update Catering' : '🚀 ADD CATERING OPTION'}</button>
@@ -2209,7 +2238,7 @@ const SimpleAdminDashboard = () => {
                                 </div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                                     <div><label style={labelStyle}>Base Price (₹)</label><input type="number" style={inputStyle} value={performerForm.price} onChange={e => setPerformerForm({ ...performerForm, price: e.target.value })} /></div>
-                                    <div><label style={labelStyle}>Preview URL</label><input style={inputStyle} value={performerForm.image} onChange={e => setPerformerForm({ ...performerForm, image: e.target.value })} /></div>
+                                    <div><label style={labelStyle}>Image URL</label><input style={inputStyle} placeholder="https://..." value={performerForm.image} onChange={e => setPerformerForm({ ...performerForm, image: e.target.value })} /></div>
                                 </div>
                                 <div><label style={labelStyle}>Description / Bio</label><textarea style={{ ...inputStyle, minHeight: '100px' }} value={performerForm.description} onChange={e => setPerformerForm({ ...performerForm, description: e.target.value })} /></div>
                                 <button onClick={handlePerformerSubmit} style={{ ...layoutStyles.actionBtnPrimary, padding: '18px', background: '#8B5CF6' }}> {editingPerformer ? 'Update Entertainment' : '🚀 ADD ENTERTAINMENT'}</button>
@@ -2357,11 +2386,11 @@ const SimpleAdminDashboard = () => {
                                         </select>
                                     </div>
                                     <div style={{ marginBottom: '25px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <input 
-                                            type="checkbox" 
-                                            id="isFinalUpdate" 
-                                            checked={fixtureForm.is_final} 
-                                            onChange={e => setFixtureForm({ ...fixtureForm, is_final: e.target.checked })} 
+                                        <input
+                                            type="checkbox"
+                                            id="isFinalUpdate"
+                                            checked={fixtureForm.is_final}
+                                            onChange={e => setFixtureForm({ ...fixtureForm, is_final: e.target.checked })}
                                         />
                                         <label htmlFor="isFinalUpdate" style={{ ...labelStyle, marginBottom: 0, color: '#E63946', fontWeight: '900' }}>
                                             THIS IS THE FINAL MATCH (Concludes Tournament)
@@ -2414,11 +2443,11 @@ const SimpleAdminDashboard = () => {
                                         </div>
                                     </div>
                                     <div style={{ marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <input 
-                                            type="checkbox" 
-                                            id="isFinalCreate" 
-                                            checked={fixtureForm.is_final} 
-                                            onChange={e => setFixtureForm({ ...fixtureForm, is_final: e.target.checked })} 
+                                        <input
+                                            type="checkbox"
+                                            id="isFinalCreate"
+                                            checked={fixtureForm.is_final}
+                                            onChange={e => setFixtureForm({ ...fixtureForm, is_final: e.target.checked })}
                                         />
                                         <label htmlFor="isFinalCreate" style={{ ...labelStyle, marginBottom: 0, color: '#E63946', fontWeight: '900' }}>
                                             SCHEDULE AS FINAL MATCH
@@ -2429,13 +2458,13 @@ const SimpleAdminDashboard = () => {
                                         {(() => {
                                             const selectedT = tournaments.find(t => Number(t.id) === Number(fixtureForm.tournament));
                                             return (
-                                                <input 
-                                                    type="datetime-local" 
-                                                    style={inputStyle} 
+                                                <input
+                                                    type="datetime-local"
+                                                    style={inputStyle}
                                                     min={selectedT?.start_date ? `${selectedT.start_date}T00:00` : ''}
                                                     max={selectedT?.end_date ? `${selectedT.end_date}T23:59` : ''}
-                                                    value={fixtureForm.match_date} 
-                                                    onChange={e => setFixtureForm({ ...fixtureForm, match_date: e.target.value })} 
+                                                    value={fixtureForm.match_date}
+                                                    onChange={e => setFixtureForm({ ...fixtureForm, match_date: e.target.value })}
                                                 />
                                             );
                                         })()}
@@ -2469,11 +2498,11 @@ const SimpleAdminDashboard = () => {
                                 <div><label style={labelStyle}>City</label><input style={inputStyle} value={concertForm.city} onChange={e => setConcertForm({ ...concertForm, city: e.target.value })} /></div>
                                 <div><label style={labelStyle}>Venue</label><input style={inputStyle} value={concertForm.venue} onChange={e => setConcertForm({ ...concertForm, venue: e.target.value })} /></div>
                             </div>
-                            <div><label style={labelStyle}>Artist Biography</label><textarea style={{ ...inputStyle, minHeight: '60px' }} value={concertForm.artistBio} onChange={e => setConcertForm({ ...concertForm, artistBio: e.target.value })} /></div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                                <div><label style={labelStyle}>Banner Image URL</label><input style={inputStyle} value={concertForm.bannerImage} onChange={e => setConcertForm({ ...concertForm, bannerImage: e.target.value })} /></div>
-                                <div><label style={labelStyle}>Thumbnail URL</label><input style={inputStyle} value={concertForm.thumbnail} onChange={e => setConcertForm({ ...concertForm, thumbnail: e.target.value })} /></div>
+                            <div>
+                                <label style={labelStyle}>Banner Image URL</label>
+                                <input style={inputStyle} placeholder="https://..." value={concertForm.bannerImage} onChange={e => setConcertForm({ ...concertForm, bannerImage: e.target.value })} />
                             </div>
+                            <div><label style={labelStyle}>Artist Biography</label><textarea style={{ ...inputStyle, minHeight: '60px' }} value={concertForm.artistBio} onChange={e => setConcertForm({ ...concertForm, artistBio: e.target.value })} /></div>
                             <div><label style={labelStyle}>Description</label><textarea style={{ ...inputStyle, minHeight: '80px' }} value={concertForm.description} onChange={e => setConcertForm({ ...concertForm, description: e.target.value })} /></div>
 
                             <hr style={{ margin: '20px 0', border: 'none', borderTop: '1px solid #eee' }} />
@@ -2501,7 +2530,12 @@ const SimpleAdminDashboard = () => {
                                 <div><label style={labelStyle}>Sponsors (Name | Logo URL per line)</label><textarea style={{ ...inputStyle, minHeight: '60px' }} value={concertForm.sponsors} onChange={e => setConcertForm({ ...concertForm, sponsors: e.target.value })} placeholder='Brand | http://logo.url' /></div>
                             </div>
 
-                            <button onClick={handleConcertSubmit} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px', marginTop: '20px' }}>{editingConcert ? 'Save All Changes' : 'Create Concert'}</button>
+                            <button onClick={() => {
+                                const finalForm = { ...concertForm };
+                                if (!finalForm.bannerImage) finalForm.bannerImage = getRandomImage('Concert');
+                                if (!finalForm.thumbnail) finalForm.thumbnail = getRandomImage('Concert');
+                                handleConcertSubmit(finalForm);
+                            }} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px', marginTop: '20px' }}>{editingConcert ? 'Save All Changes' : 'Create Concert'}</button>
                         </div>
                     </div>
                 </div>
@@ -2530,11 +2564,16 @@ const SimpleAdminDashboard = () => {
                                 <div><label style={labelStyle}>Start Date <span style={{ color: '#EF4444' }}>*</span></label><input type="date" style={inputStyle} value={festivalForm.startDate} onChange={e => setFestivalForm({ ...festivalForm, startDate: e.target.value })} /></div>
                                 <div><label style={labelStyle}>End Date <span style={{ color: '#EF4444' }}>*</span></label><input type="date" style={inputStyle} value={festivalForm.endDate} onChange={e => setFestivalForm({ ...festivalForm, endDate: e.target.value })} /></div>
                             </div>
-                            <div><label style={labelStyle}>Festival Banner Image URL <span style={{ color: '#EF4444' }}>*</span></label><input style={inputStyle} placeholder='https://...' value={festivalForm.image} onChange={e => setFestivalForm({ ...festivalForm, image: e.target.value })} /></div>
                             <div><label style={labelStyle}>About Festival <span style={{ color: '#EF4444' }}>*</span></label><textarea style={{ ...inputStyle, minHeight: '80px' }} placeholder='Describe the festival experience...' value={festivalForm.about} onChange={e => setFestivalForm({ ...festivalForm, about: e.target.value })} /></div>
-                            <div>
-                                <label style={labelStyle}>Event Time (e.g. 5:00 PM onwards) <span style={{ color: '#EF4444' }}>*</span></label>
-                                <input style={inputStyle} placeholder='e.g. 6:00 PM' value={festivalForm.time} onChange={e => setFestivalForm({ ...festivalForm, time: e.target.value })} />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div>
+                                    <label style={labelStyle}>Event Time <span style={{ color: '#EF4444' }}>*</span></label>
+                                    <input style={inputStyle} placeholder='e.g. 6:00 PM' value={festivalForm.time} onChange={e => setFestivalForm({ ...festivalForm, time: e.target.value })} />
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Main Festival Image URL</label>
+                                    <input style={inputStyle} placeholder='https://...' value={festivalForm.image} onChange={e => setFestivalForm({ ...festivalForm, image: e.target.value })} />
+                                </div>
                             </div>
                             <div>
                                 <label style={labelStyle}>Highlights <span style={{ color: '#EF4444' }}>*</span> — icon | label | detail (one per line)</label>
@@ -2576,7 +2615,11 @@ const SimpleAdminDashboard = () => {
 
                             <div><label style={labelStyle}>FAQs — question | answer (one per line)</label><textarea style={{ ...inputStyle, minHeight: '70px' }} value={festivalForm.faqs} onChange={e => setFestivalForm({ ...festivalForm, faqs: e.target.value })} placeholder={'Is it pet friendly? | No\nIs parking available? | Yes, free parking'} /></div>
 
-                            <button onClick={handleFestivalSubmit} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px', marginTop: '20px' }}>{editingFestival ? 'Save All Changes' : 'Create Festival'}</button>
+                            <button onClick={() => {
+                                const finalForm = { ...festivalForm };
+                                if (!finalForm.image) finalForm.image = getRandomImage('Festival');
+                                handleFestivalSubmit(finalForm);
+                            }} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px', marginTop: '20px' }}>{editingFestival ? 'Save All Changes' : 'Create Festival'}</button>
                         </div>
                     </div>
                 </div>
@@ -2631,32 +2674,41 @@ const SimpleAdminDashboard = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                                 <div>
                                     <label style={labelStyle}>Reg Deadline</label>
-                                    <input 
-                                        type="date" 
-                                        style={inputStyle} 
+                                    <input
+                                        type="date"
+                                        style={inputStyle}
                                         max={tournamentForm.start_date ? (() => {
                                             const d = new Date(tournamentForm.start_date);
                                             d.setDate(d.getDate() - 10);
                                             return d.toISOString().split('T')[0];
                                         })() : undefined}
-                                        value={tournamentForm.registration_deadline} 
-                                        onChange={e => setTournamentForm({ ...tournamentForm, registration_deadline: e.target.value })} 
+                                        value={tournamentForm.registration_deadline}
+                                        onChange={e => setTournamentForm({ ...tournamentForm, registration_deadline: e.target.value })}
                                     />
                                 </div>
                                 <div><label style={labelStyle}>Max Teams/Participants</label><input type="number" style={inputStyle} value={tournamentForm.max_teams} onChange={e => setTournamentForm({ ...tournamentForm, max_teams: e.target.value })} /></div>
                             </div>
-                            <div>
-                                <label style={labelStyle}>Status</label>
-                                <select style={inputStyle} value={tournamentForm.status} onChange={e => setTournamentForm({ ...tournamentForm, status: e.target.value })}>
-                                    <option value="Registration Open">Registration Open</option>
-                                    <option value="Registration Closed">Registration Closed</option>
-                                    <option value="Ongoing">Ongoing</option>
-                                    <option value="Completed">Completed</option>
-                                    <option value="Full/Closed">Full/Closed</option>
-                                </select>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                                <div>
+                                    <label style={labelStyle}>Status</label>
+                                    <select style={inputStyle} value={tournamentForm.status} onChange={e => setTournamentForm({ ...tournamentForm, status: e.target.value })}>
+                                        <option value="Registration Open">Registration Open</option>
+                                        <option value="Registration Closed">Registration Closed</option>
+                                        <option value="Ongoing">Ongoing</option>
+                                        <option value="Completed">Completed</option>
+                                        <option value="Full/Closed">Full/Closed</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={labelStyle}>Tournament Image URL</label>
+                                    <input style={inputStyle} placeholder='https://...' value={tournamentForm.image} onChange={e => setTournamentForm({ ...tournamentForm, image: e.target.value })} />
+                                </div>
                             </div>
-                            <div><label style={labelStyle}>Tournament Image URL</label><input style={inputStyle} value={tournamentForm.image} onChange={e => setTournamentForm({ ...tournamentForm, image: e.target.value })} /></div>
-                            <button onClick={handleTournamentSubmit} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px' }}>{editingTournament ? 'Save Changes' : 'Create Tournament'}</button>
+                            <button onClick={() => {
+                                const finalForm = { ...tournamentForm };
+                                if (!finalForm.image) finalForm.image = getRandomImage('Wedding'); // Default to wedding-style sports image
+                                handleTournamentSubmit(finalForm);
+                            }} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px' }}>{editingTournament ? 'Save Changes' : 'Create Tournament'}</button>
                         </div>
                     </div>
                 </div>
@@ -2678,12 +2730,10 @@ const SimpleAdminDashboard = () => {
                                 <label style={labelStyle}>Description / What's Included</label>
                                 <textarea style={{ ...inputStyle, minHeight: '100px' }} value={weddingEventForm.description} onChange={e => setWeddingEventForm({ ...weddingEventForm, description: e.target.value })} placeholder="Describe the ceremony details..." />
                             </div>
-                             <div>
-                                <label style={labelStyle}>Cover Image URL</label>
-                                <input style={inputStyle} value={weddingEventForm.image} onChange={e => setWeddingEventForm({ ...weddingEventForm, image: e.target.value })} placeholder="https://..." />
+                            <div>
+                                <label style={labelStyle}>Image URL</label>
+                                <input style={inputStyle} value={weddingEventForm.image} onChange={e => setWeddingEventForm({ ...weddingEventForm, image: e.target.value })} placeholder="Paste image address..." />
                             </div>
-                            
-
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'var(--light, #f8fafc)', padding: '15px', borderRadius: '12px' }}>
                                 <input type="checkbox" id="ceremony_visible" checked={weddingEventForm.is_visible} onChange={e => setWeddingEventForm({ ...weddingEventForm, is_visible: e.target.checked })} style={{ width: '20px', height: '20px', cursor: 'pointer' }} />

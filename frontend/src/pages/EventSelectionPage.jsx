@@ -129,7 +129,8 @@ const EventSelectionPage = () => {
                     address: basicDetails.venueName ? `${basicDetails.venueName}, ${basicDetails.venueAddress}` : (basicDetails.venueAddress || "TBD"),
                     wedding_details: {
                         ...basicDetails,
-                        selectedEventTypes: selectedEvents.map(e => e.id) // Track IDs specifically
+                        selectedEvents: selectedEvents, // Full objects for robustness
+                        selectedEventTypes: selectedEvents.map(e => e.name) // Names for display logic
                     }
                 };
 

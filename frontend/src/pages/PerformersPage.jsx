@@ -14,13 +14,22 @@ const PerformersPage = () => {
   const [loading, setLoading] = useState(true);
 
   const getInitialState = () => {
-    if (location.state && location.state.selectedStyles) return location.state;
-    const saved = localStorage.getItem('ongoing_booking');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      if (location.state && (location.state.selectedStyles || location.state.selectedMenu || location.state.selectedPerformer)) {
+        return location.state;
+      }
+      const saved = localStorage.getItem('ongoing_booking');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error("State recovery failed:", e);
+      return {};
+    }
   };
 
   const currentState = getInitialState();
-  const { selectedEvents = [] } = currentState;
+  const eventData = currentState.eventData || {};
+  const weddingDetails = eventData.wedding_details || {};
+  const selectedEvents = weddingDetails.selectedEvents || [];
 
   const [selectedPerformer, setSelectedPerformer] = useState(null);
 
@@ -38,17 +47,6 @@ const PerformersPage = () => {
       }
     };
     fetchData();
-
-    const bookingId = localStorage.getItem("booking_id");
-    if (bookingId) {
-      API.get(`booking-draft/${bookingId}/`)
-        .then(res => {
-          if (res.data.performer) {
-            setSelectedPerformer(res.data.performer);
-          }
-        })
-        .catch(err => console.error("Error loading performer draft:", err));
-    }
   }, []);
 
   const singersList = perfList.filter(p => p.category === 'Singer');
@@ -77,7 +75,7 @@ const PerformersPage = () => {
         <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#333' }}>{p.name}</div>
         <p style={{ color: '#888', fontSize: '0.9rem', margin: '10px 0' }}>Perfect for wedding ceremonies, sangeet nights, and receptions.</p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
-          <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#111' }}>₹{p.price.toLocaleString('en-IN')}</span>
+          <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#111' }}>₹{parseFloat(p.price || 0).toLocaleString('en-IN')}</span>
           <button onClick={() => handleNext(p)} style={{ padding: '10px 20px', background: '#C4A059', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Select</button>
         </div>
       </div>
@@ -157,32 +155,33 @@ const PerformersPage = () => {
               )}
             </div>
 
-          {/* Sticky Summary Sidebar */}
-          <aside style={{ height: 'fit-content', position: 'sticky', top: '100px', padding: 30, borderRadius: 20, background: '#fff', boxShadow: '0 20px 50px rgba(0,0,0,0.08)', border: '1px solid #eee' }}>
-            <h4 style={{ fontSize: '1.4rem', marginBottom: 20, fontFamily: 'serif' }}>Your Selection</h4>
-            <div style={{ minHeight: '100px' }}>
-              {selectedPerformer ? (
-                <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                  <img src={selectedPerformer.image} style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 10, marginBottom: 15 }} />
-                  <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedPerformer.name}</div>
-                  <div style={{ color: '#C4A059', fontWeight: 900, marginTop: 5 }}>₹{selectedPerformer.price.toLocaleString('en-IN')}</div>
-                </div>
-              ) : (
-                <div style={{ color: '#999', textAlign: 'center', padding: '20px 0' }}>No performer selected</div>
-              )}
-            </div>
+            {/* Sticky Summary Sidebar */}
+            <aside style={{ height: 'fit-content', position: 'sticky', top: '100px', padding: 30, borderRadius: 20, background: '#fff', boxShadow: '0 20px 50px rgba(0,0,0,0.08)', border: '1px solid #eee' }}>
+              <h4 style={{ fontSize: '1.4rem', marginBottom: 20, fontFamily: 'serif' }}>Your Selection</h4>
+              <div style={{ minHeight: '100px' }}>
+                {selectedPerformer ? (
+                  <div style={{ animation: 'fadeIn 0.3s ease' }}>
+                    <img src={selectedPerformer.image} style={{ width: '100%', height: 150, objectFit: 'cover', borderRadius: 10, marginBottom: 15 }} />
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>{selectedPerformer.name}</div>
+                    <div style={{ color: '#C4A059', fontWeight: 900, marginTop: 5 }}>₹{parseFloat(selectedPerformer.price || 0).toLocaleString('en-IN')}</div>
+                  </div>
+                ) : (
+                  <div style={{ color: '#999', textAlign: 'center', padding: '20px 0' }}>No performer selected</div>
+                )}
+              </div>
 
-            <button
-              onClick={() => handleNext()}
-              disabled={!selectedPerformer}
-              style={{ marginTop: 30, width: '100%', padding: '15px', background: selectedPerformer ? '#C4A059' : '#ccc', color: '#fff', border: 'none', borderRadius: 10, cursor: selectedPerformer ? 'pointer' : 'not-allowed', fontWeight: 800, fontSize: '1rem', transition: 'all 0.3s' }}
-            >
-              Confirm Selection
-            </button>
-            <button onClick={handleSkip} style={{ marginTop: 15, width: '100%', padding: '12px', background: 'transparent', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', color: '#666', fontWeight: 600 }}>Skip to Summary</button>
-          </aside>
+              <button
+                onClick={() => handleNext()}
+                disabled={!selectedPerformer}
+                style={{ marginTop: 30, width: '100%', padding: '15px', background: selectedPerformer ? '#C4A059' : '#ccc', color: '#fff', border: 'none', borderRadius: 10, cursor: selectedPerformer ? 'pointer' : 'not-allowed', fontWeight: 800, fontSize: '1rem', transition: 'all 0.3s' }}
+              >
+                Confirm Selection
+              </button>
+              <button onClick={handleSkip} style={{ marginTop: 15, width: '100%', padding: '12px', background: 'transparent', border: '1px solid #ddd', borderRadius: 10, cursor: 'pointer', color: '#666', fontWeight: 600 }}>Skip to Summary</button>
+            </aside>
 
-        </div>
+          </div>
+        )}
       </div>
       <style>{`
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

@@ -43,7 +43,10 @@ const LocalWeddingFormPage = () => {
       eventsRequired: {}, 
       venueName: '',
       venueAddress: '',
+      venueType: { Indoor: false, Outdoor: false },
+      isDestinationWedding: '',
       approxBudget: '',
+      budgetPriority: { Decoration: false, Catering: false, Photography: false, Entertainment: false },
       guestCount: '',
       weddingTheme: '',
       colorPreferences: '',
@@ -85,7 +88,7 @@ const LocalWeddingFormPage = () => {
         } catch (err) {
             console.error("Error fetching ceremonies:", err);
             // Fallback
-            const fallback = ["Mehendi", "Sangeet", "Haldi", "Wedding", "Reception"];
+            const fallback = ["Mehendi", "Sangeet", "Haldi", "Wedding"];
             setForm(prev => {
                 const newEventsRequired = { ...prev.eventsRequired };
                 fallback.forEach(f => {
@@ -170,13 +173,16 @@ const LocalWeddingFormPage = () => {
   };
 
   const handleCheckboxChange = (section, key) => {
-    setForm(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [key]: !prev[section][key]
-      }
-    }));
+    setForm(prev => {
+      const currentSection = prev[section] || {};
+      return {
+        ...prev,
+        [section]: {
+          ...currentSection,
+          [key]: !currentSection[key]
+        }
+      };
+    });
   };
 
   const handleProceed = () => {
@@ -233,8 +239,50 @@ const LocalWeddingFormPage = () => {
       return;
     }
 
+    // --- CALCULATE SELECTED EVENTS ---
+    const selectedEvents = ceremonies.filter(c => form.eventsRequired[c.name]);
+    const selectedEventTypes = selectedEvents.map(e => e.name);
+
+    if (selectedEvents.length === 0) {
+      setCustomAlert({
+        show: true,
+        title: 'EVENTS REQUIRED',
+        message: 'Please select at least one ceremony to continue (e.g., Wedding, Sangeet).'
+      });
+      return;
+    }
+
+    // --- PREPARE PAYLOAD ---
+    const safeDate = form.weddingDates[0] || new Date().toISOString().split('T')[0];
+    const safeGuests = parseInt(form.guestCount) || 50;
+
+    const payload = {
+      event_type: 'Weddings',
+      event_date: safeDate,
+      guests: safeGuests,
+      budget: parseFloat(form.approxBudget) || 0,
+      address: form.venueName ? `${form.venueName}, ${form.venueAddress}` : (form.venueAddress || "TBD"),
+      wedding_details: {
+        ...form,
+        selectedEvents: selectedEvents,
+        selectedEventTypes: selectedEventTypes
+      }
+    };
+
+    const bookingData = {
+      id: null,
+      step: 1,
+      guestCount: payload.guests,
+      totalBudget: payload.budget,
+      eventData: payload
+    };
+
+    // Save to local storage for persistence
+    localStorage.setItem('ongoing_booking', JSON.stringify(bookingData));
     setFormData(form);
-    navigate('/event-selection', { state: { category: 'Weddings', basicDetails: form } });
+    
+    // Navigate directly to Catering (Menu Selection)
+    navigate('/catering', { state: bookingData });
   };
 
   // --- 2. STYLES (Pink/Purple Floral Aesthetic from Image) ---
@@ -545,7 +593,7 @@ const LocalWeddingFormPage = () => {
                 <PillCheckbox
                   key={opt}
                   label={opt}
-                  checked={form.venueType[opt]}
+                  checked={(form.venueType || {})[opt]}
                   onChange={() => handleCheckboxChange('venueType', opt)}
                 />
               ))}
