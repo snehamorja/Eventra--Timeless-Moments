@@ -120,8 +120,12 @@ const ConcertsPage = () => {
                                     color: selectedConcert?.id === c.id ? '#fff' : '#111'
                                 }}
                             >
-                                <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
-                                    <img src={c.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <div style={{ width: '80px', height: '80px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    {c.bannerImage || c.thumbnail ? (
+                                        <img src={c.bannerImage || c.thumbnail} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <span style={{ fontSize: '1.5rem' }}>🎸</span>
+                                    )}
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                     <div style={{ fontSize: '1rem', fontWeight: '800' }}>{c.title}</div>
@@ -269,8 +273,12 @@ const ConcertDetailView = ({ concert }) => {
     return (
         <div style={{ backgroundColor: '#F9F4E8', minHeight: '100vh', color: '#1a1a1a', fontFamily: 'Montserrat, sans-serif' }}>
             {/* HERO */}
-            <div style={{ position: 'relative', height: '60vh', overflow: 'hidden', background: '#1a1a1a' }}>
-                <img src={concert.bannerImage} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }} alt="" />
+            <div style={{ position: 'relative', height: '60vh', overflow: 'hidden', background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {concert.bannerImage ? (
+                    <img src={concert.bannerImage} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.6 }} alt="" />
+                ) : (
+                    <div style={{ fontSize: '8rem', opacity: 0.2 }}>🎸</div>
+                )}
                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #F9F4E8 0%, transparent 100%)' }} />
                 <div style={{ position: 'absolute', bottom: 60, left: '5%', right: '5%', color: '#111' }}>
                     <h2 style={{ fontSize: '1.8rem', color: '#C4A059', letterSpacing: '5px', textTransform: 'uppercase', marginBottom: '10px' }}>{concert.artist}</h2>
@@ -355,7 +363,13 @@ const ConcertDetailView = ({ concert }) => {
                     <div style={{ position: 'sticky', top: '40px', alignSelf: 'start' }}>
                         <div style={{ background: '#fff', padding: '40px', borderRadius: '24px', border: '1px solid #D1CFBB' }}>
                             <h3 style={{ fontSize: '1.6rem', borderBottom: '1px solid #eee', paddingBottom: '20px', marginBottom: '25px', fontFamily: 'Playfair Display, serif' }}>Artist Profile</h3>
-                            <img src={concert.thumbnail} style={{ width: '100%', borderRadius: '15px', marginBottom: '25px', filter: 'grayscale(0.3)' }} alt="" />
+                            <div style={{ width: '100%', aspectRatio: '1/1', borderRadius: '15px', marginBottom: '25px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                {concert.artistImage || concert.bannerImage || concert.thumbnail ? (
+                                    <img src={concert.artistImage || concert.bannerImage || concert.thumbnail} style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(0.3)' }} alt="" />
+                                ) : (
+                                    <span style={{ fontSize: '4rem' }}>👤</span>
+                                )}
+                            </div>
                             <h4 style={{ fontSize: '1.6rem', color: '#C4A059', marginBottom: '10px' }}>{concert.artist}</h4>
                             <p style={{ color: '#666', lineHeight: '1.6', fontSize: '0.9rem' }}>{concert.artistBio}</p>
                             <h5 style={{ fontSize: '0.9rem', color: '#aaa', margin: '25px 0 10px', fontWeight: '800' }}>SIGNATURE TRACKS</h5>

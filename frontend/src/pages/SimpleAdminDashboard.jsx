@@ -19,9 +19,29 @@ const BillRow = ({ label, value, sub, bold, big, color }) => (
 
 const SimpleAdminDashboard = () => {
     const [bookings, setBookings] = useState([]);
-
     const [jobApplications, setJobApplications] = useState([]);
-    const [eventInquiries, setEventInquiries] = useState([]);
+
+    const parseSimpleList = (str) => typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(str) ? str : []);
+    const parsePipeList = (str, keys) => {
+        if (!str || !str.trim()) return [];
+        if (Array.isArray(str)) return str;
+        return str.split('\n').map(line => {
+            const parts = line.split('|').map(s => s.trim());
+            const obj = {};
+            keys.forEach((k, i) => { obj[k] = parts[i] || ''; });
+            return obj;
+        }).filter(o => Object.values(o).some(Boolean));
+    };
+    const parseSimplePairs = (str) => {
+        if (!str || !str.trim()) return {};
+        if (typeof str !== 'string') return str;
+        const obj = {};
+        str.split('\n').forEach(line => {
+            const [k, v] = line.split('|').map(s => s.trim());
+            if (k) obj[k] = v || '';
+        });
+        return obj;
+    };
     const [users, setUsers] = useState([]);
     const [blogs, setBlogs] = useState([]);
     const [gallery, setGallery] = useState([]);
@@ -52,7 +72,7 @@ const SimpleAdminDashboard = () => {
     const [showCreateConcert, setShowCreateConcert] = useState(false);
     const [concertForm, setConcertForm] = useState({
         title: '', artist: '', artistBio: '', date: defaultPastDate, time: '18:00', venue: '', city: '', genre: '',
-        bannerImage: '', thumbnail: '', description: '', booking_deadline: defaultPastDate,
+        bannerImage: '', thumbnail: '', artistImage: '', description: '', booking_deadline: defaultPastDate,
         popularTracks: '', highlights: '', tickets: '', schedule: '', rules: '', faqs: '', sponsors: ''
     });
     const [editingConcert, setEditingConcert] = useState(null);
@@ -116,6 +136,7 @@ const SimpleAdminDashboard = () => {
     const [theme, setTheme] = useState(localStorage.getItem('theme') || 'light');
     const [adminUser, setAdminUser] = useState(null);
     const [showPendingOnly, setShowPendingOnly] = useState(false);
+    const [policyAccepted, setPolicyAccepted] = useState(false);
 
 
 
@@ -143,17 +164,7 @@ const SimpleAdminDashboard = () => {
         return msg.substring(0, 150);
     };
 
-    const getRandomImage = (type) => {
-        const wedding = ["https://images.unsplash.com/photo-1519225421980-715cb0202128?q=80&w=800", "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=800", "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=800"];
-        const food = ["https://images.unsplash.com/photo-1555244162-803834f70033?q=80&w=800", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=800"];
-        const entertainment = ["https://images.unsplash.com/photo-1514525253361-bee8d40d4ba1?q=80&w=800", "https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=800"];
-        const festival = ["https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?q=80&w=800", "https://images.unsplash.com/photo-1459749411177-042180ce673c?q=80&w=800"];
 
-        if (type === 'Wedding') return wedding[Math.floor(Math.random() * wedding.length)];
-        if (type === 'Catering') return food[Math.floor(Math.random() * food.length)];
-        if (type === 'Festival') return festival[Math.floor(Math.random() * festival.length)];
-        return entertainment[Math.floor(Math.random() * entertainment.length)];
-    };
 
     useEffect(() => {
         fetchAllData();
@@ -213,13 +224,6 @@ const SimpleAdminDashboard = () => {
                 approved: blogs.filter(b => b.is_published).length,
                 revenue: 0
             });
-        } else if (activeTab === 'Inquiries') {
-            setStats({
-                total: eventInquiries.length,
-                pending: eventInquiries.filter(i => i.status === 'Pending').length,
-                approved: eventInquiries.filter(i => i.status === 'Reviewed').length,
-                revenue: 0
-            });
         } else if (activeTab === 'Users') {
             setStats({
                 total: users.length,
@@ -251,12 +255,12 @@ const SimpleAdminDashboard = () => {
         } else if (activeTab === 'Sports') {
             setStats({
                 total: sportsSubTab === 'Registrations' ? registrations.length : sportsSubTab === 'Tournaments' ? tournaments.length : fixtures.length,
-                pending: sportsSubTab === 'Registrations' ? registrations.filter(r => r.status === 'Confirmed').length : 0,
-                approved: sportsSubTab === 'Registrations' ? registrations.filter(r => r.status === 'Winner').length : 0,
+                pending: sportsSubTab === 'Registrations' ? registrations.filter(r => r.status === 'Confirmed' || r.status === 'Pending').length : (sportsSubTab === 'Tournaments' ? tournaments.filter(t => t.status === 'Registration Open' || t.status === 'Ongoing').length : fixtures.filter(f => f.status === 'Scheduled').length),
+                approved: sportsSubTab === 'Registrations' ? registrations.filter(r => r.status === 'Winner' || r.status === 'Confirmed').length : (sportsSubTab === 'Tournaments' ? tournaments.filter(t => t.status === 'Completed').length : fixtures.filter(f => f.status === 'Completed').length),
                 revenue: sportsSubTab === 'Registrations' ? registrations.reduce((acc, r) => acc + (parseFloat(r.price) || 0), 0) : 0
             });
         }
-    }, [activeTab, weddingSubTab, bookings, jobApplications, blogs, eventInquiries, users, gallery, decorations, catering, performers]);
+    }, [activeTab, weddingSubTab, sportsSubTab, viewMaster, bookings, jobApplications, blogs, users, gallery, decorations, catering, performers, registrations, tournaments, fixtures, concertBookings, festivalBookings, concerts, festivals]);
 
     useEffect(() => {
         if (scrollAreaRef.current) {
@@ -268,13 +272,12 @@ const SimpleAdminDashboard = () => {
         if (!silent) setLoading(true);
         try {
             // Use allSettled so one failing endpoint doesn't block others
-            const [res1, res2, res3, res4, res5, res6, res7, res8, res9, res10, res11, res12, res13, res14, res15, res16, res17] = await Promise.allSettled([
+            const [rBookings, rCareers, rBlogs, rUsers, rGallery, rDecor, rCatering, rPerformers, rConcertBookings, rFestivalBookings, rTournaments, rSports, rFixtures, rConcerts, rFestivals, rWeddingEvents] = await Promise.allSettled([
                 api.get('/bookings/'),
                 api.get('/careers/applications/'),
-                api.get('/blogs/'),
-                api.get('/event-inquiries/list/'),
+                api.get('/blogs/?all=true'),
                 api.get('/users/'),
-                api.get('/gallery/'),
+                api.get('/gallery/?all=true'),
                 api.get('/decorations/'),
                 api.get('/catering/'),
                 api.get('/performers/'),
@@ -287,43 +290,48 @@ const SimpleAdminDashboard = () => {
                 api.get('/festivals/?all=true'),
                 api.get('/wedding-events/?all=true')
             ]);
-            if (res1.status === 'fulfilled') setBookings(res1.value.data || []);
-            if (res2.status === 'fulfilled') setJobApplications(res2.value.data || []);
-            if (res3.status === 'fulfilled') setBlogs(res3.value.data || []);
-            if (res4.status === 'fulfilled') setEventInquiries(res4.value.data || []);
-            if (res5.status === 'fulfilled') setUsers(res5.value.data || []);
-            if (res6.status === 'fulfilled') setGallery(res6.value.data || []);
-            if (res7.status === 'fulfilled') setDecorations(res7.value.data || []);
-            if (res8.status === 'fulfilled') setCatering(res8.value.data || []);
-            if (res9.status === 'fulfilled') setPerformers(res9.value.data || []);
-            if (res10.status === 'fulfilled') setConcertBookings(res10.value.data || []);
-            if (res11.status === 'fulfilled') setFestivalBookings(res11.value.data || []);
-            if (res12.status === 'fulfilled') setTournaments(res12.value.data || []);
-            if (res13.status === 'fulfilled') setRegistrations(res13.value.data || []);
-            if (res14.status === 'fulfilled') setFixtures(res14.value.data || []);
-            if (res15.status === 'fulfilled') setConcerts(res15.value.data || []);
-            if (res16.status === 'fulfilled') setFestivals(res16.value.data || []);
-            if (res17 && res17.status === 'fulfilled') setWeddingEvents(res17.value.data || []);
+
+            if (rBookings.status === 'fulfilled') setBookings(rBookings.value.data || []);
+            if (rCareers.status === 'fulfilled') setJobApplications(rCareers.value.data || []);
+            if (rBlogs.status === 'fulfilled') setBlogs(rBlogs.value.data || []);
+            if (rUsers.status === 'fulfilled') setUsers(rUsers.value.data || []);
+            if (rGallery.status === 'fulfilled') setGallery(rGallery.value.data || []);
+            if (rDecor.status === 'fulfilled') setDecorations(rDecor.value.data || []);
+            if (rCatering.status === 'fulfilled') setCatering(rCatering.value.data || []);
+            if (rPerformers.status === 'fulfilled') setPerformers(rPerformers.value.data || []);
+            if (rConcertBookings.status === 'fulfilled') setConcertBookings(rConcertBookings.value.data || []);
+            if (rFestivalBookings.status === 'fulfilled') setFestivalBookings(rFestivalBookings.value.data || []);
+            if (rTournaments.status === 'fulfilled') setTournaments(rTournaments.value.data || []);
+            if (rSports.status === 'fulfilled') setRegistrations(rSports.value.data || []);
+            if (rFixtures.status === 'fulfilled') setFixtures(rFixtures.value.data || []);
+            if (rConcerts.status === 'fulfilled') setConcerts(rConcerts.value.data || []);
+            if (rFestivals.status === 'fulfilled') setFestivals(rFestivals.value.data || []);
+            if (rWeddingEvents.status === 'fulfilled') setWeddingEvents(rWeddingEvents.value.data || []);
 
 
             // Fetch Deleted Items for Recycle Bin
-            const [d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14] = await Promise.allSettled([
-                api.get('/bookings/?deleted=true'), api.get('/careers/applications/?deleted=true'),
-                api.get('/blogs/?deleted=true'), api.get('/event-inquiries/list/?deleted=true'),
-                api.get('/gallery/?deleted=true'), api.get('/decorations/?deleted=true'),
-                api.get('/catering/?deleted=true'), api.get('/performers/?deleted=true'),
-                api.get('/concert-bookings/list/?deleted=true'), api.get('/festival-bookings/list/?deleted=true'),
-                api.get('/tournaments/?deleted=true'), api.get('/concerts/?deleted=true'),
-                api.get('/festivals/?deleted=true'), api.get('/sports-registrations/?deleted=true'),
+            const [d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13] = await Promise.allSettled([
+                api.get('/bookings/?deleted=true'), 
+                api.get('/careers/applications/?deleted=true'),
+                api.get('/gallery/?deleted=true'), 
+                api.get('/decorations/?deleted=true'),
+                api.get('/catering/?deleted=true'), 
+                api.get('/performers/?deleted=true'),
+                api.get('/concert-bookings/list/?deleted=true'), 
+                api.get('/festival-bookings/list/?deleted=true'),
+                api.get('/tournaments/?deleted=true'), 
+                api.get('/concerts/?deleted=true'),
+                api.get('/festivals/?deleted=true'), 
+                api.get('/sports-registrations/?deleted=true'),
+                api.get('/wedding-events/?deleted=true'),
             ]);
 
             // --- GLOBAL ANALYTICS LOGIC ---
-            const allWeddings = res1.status === 'fulfilled' ? res1.value.data || [] : [];
-            const allConcerts = res10.status === 'fulfilled' ? res10.value.data || [] : [];
-            const allFestivals = res11.status === 'fulfilled' ? res11.value.data || [] : [];
-            const allSports = res13.status === 'fulfilled' ? res13.value.data || [] : [];
-            const allInquiries = res4.status === 'fulfilled' ? res4.value.data || [] : [];
-            const allApps = res2.status === 'fulfilled' ? res2.value.data || [] : [];
+            const allWeddings = rBookings.status === 'fulfilled' ? rBookings.value.data || [] : [];
+            const allConcerts = rConcertBookings.status === 'fulfilled' ? rConcertBookings.value.data || [] : [];
+            const allFestivals = rFestivalBookings.status === 'fulfilled' ? rFestivalBookings.value.data || [] : [];
+            const allSports = rSports.status === 'fulfilled' ? rSports.value.data || [] : [];
+            const allApps = rCareers.status === 'fulfilled' ? rCareers.value.data || [] : [];
 
             const allEventData = [...allWeddings, ...allConcerts, ...allFestivals, ...allSports];
 
@@ -342,10 +350,9 @@ const SimpleAdminDashboard = () => {
                 finishedEvents,
                 completedEvents,
                 totalRevenue: totalRevenue,
-                totalUsers: (res5.status === 'fulfilled' ? res5.value.data || [] : []).length,
-                activeBlogs: (res3.status === 'fulfilled' ? res3.value.data || [] : []).filter(b => b.is_published).length,
-                totalJobs: (res2.status === 'fulfilled' ? res2.value.data || [] : []).length,
-                unreviewedInquiries: (res4.status === 'fulfilled' ? res4.value.data || [] : []).filter(i => i.status === 'Pending').length
+                totalUsers: (rUsers.status === 'fulfilled' ? rUsers.value.data || [] : []).length,
+                activeBlogs: (rBlogs.status === 'fulfilled' ? rBlogs.value.data || [] : []).filter(b => b.is_published).length,
+                totalJobs: (rCareers.status === 'fulfilled' ? rCareers.value.data || [] : []).length,
             });
 
             const combinedActions = [
@@ -353,28 +360,27 @@ const SimpleAdminDashboard = () => {
                 ...allConcerts.map(a => ({ ...a, _label: 'Concert Entry', _time: a.created_at || a.booking_date, _icon: '🎸' })),
                 ...allFestivals.map(a => ({ ...a, _label: 'Festival Pass', _time: a.created_at || a.booking_date, _icon: '🎭' })),
                 ...allSports.map(a => ({ ...a, _label: 'Sports Entry', _time: a.registered_at || a.date, _icon: '🏆' })),
-                ...allInquiries.map(a => ({ ...a, _label: 'New Inquiry', _time: a.created_at, _icon: '📬' })),
-                ...(res3.status === 'fulfilled' ? res3.value.data || [] : []).map(a => ({ ...a, _label: 'Blog Post', _time: a.created_at || a.published_at, _icon: '✍️' })),
-                ...(res2.status === 'fulfilled' ? res2.value.data || [] : []).map(a => ({ ...a, _label: 'Job Applied', _time: a.applied_at || a.created_at, _icon: '👤' })),
-                ...(res6.status === 'fulfilled' ? res6.value.data || [] : []).map(a => ({ ...a, _label: 'Gallery Photo', _time: a.created_at, _icon: '🖼️' }))
+                ...(rTournaments.status === 'fulfilled' ? rTournaments.value.data || [] : []).map(a => ({ ...a, _label: 'New Tournament', _time: a.created_at || a.start_date, _icon: '🏅' })),
+                ...(rBlogs.status === 'fulfilled' ? rBlogs.value.data || [] : []).map(a => ({ ...a, _label: 'Blog Post', _time: a.created_at || a.published_at, _icon: '✍️' })),
+                ...(rCareers.status === 'fulfilled' ? rCareers.value.data || [] : []).map(a => ({ ...a, _label: 'Job Applied', _time: a.applied_at || a.created_at, _icon: '👤' })),
+                ...(rGallery.status === 'fulfilled' ? rGallery.value.data || [] : []).map(a => ({ ...a, _label: 'Gallery Photo', _time: a.created_at, _icon: '🖼️' }))
             ].sort((a, b) => new Date(b._time) - new Date(a._time)).slice(0, 15);
             setRecentActivity(combinedActions);
 
             const allDeletedData = [
                 ...(d1.status === 'fulfilled' ? d1.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Wedding' })),
                 ...(d2.status === 'fulfilled' ? d2.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Job Application' })),
-                ...(d3.status === 'fulfilled' ? d3.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Blog' })),
-                ...(d4.status === 'fulfilled' ? d4.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Inquiry' })),
-                ...(d5.status === 'fulfilled' ? d5.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Gallery' })),
-                ...(d6.status === 'fulfilled' ? d6.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Decor' })),
-                ...(d7.status === 'fulfilled' ? d7.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Catering' })),
-                ...(d8.status === 'fulfilled' ? d8.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Entertainment' })),
-                ...(d9.status === 'fulfilled' ? d9.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Concert' })),
-                ...(d10.status === 'fulfilled' ? d10.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Festival' })),
-                ...(d11.status === 'fulfilled' ? d11.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Tournament' })),
-                ...(d12.status === 'fulfilled' ? d12.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Concert Master' })),
-                ...(d13.status === 'fulfilled' ? d13.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Festival Master' })),
-                ...(d14.status === 'fulfilled' ? d14.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Sports Registration' })),
+                ...(d3.status === 'fulfilled' ? d3.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Gallery' })),
+                ...(d4.status === 'fulfilled' ? d4.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Decor' })),
+                ...(d5.status === 'fulfilled' ? d5.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Catering' })),
+                ...(d6.status === 'fulfilled' ? d6.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Entertainment' })),
+                ...(d7.status === 'fulfilled' ? d7.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Concert' })),
+                ...(d8.status === 'fulfilled' ? d8.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Festival' })),
+                ...(d9.status === 'fulfilled' ? d9.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Tournament' })),
+                ...(d10.status === 'fulfilled' ? d10.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Concert Master' })),
+                ...(d11.status === 'fulfilled' ? d11.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Festival Master' })),
+                ...(d12.status === 'fulfilled' ? d12.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Sports Registration' })),
+                ...(d13.status === 'fulfilled' ? d13.value.data || [] : []).map(i => ({ ...i, _deletedType: 'Wedding Ceremony' })),
             ];
             setDeletedItems(allDeletedData);
         } catch (error) {
@@ -441,7 +447,6 @@ const SimpleAdminDashboard = () => {
                     else if (type === 'job') path = `careers/applications/${id}/`;
                     else if (type === 'blog') path = `blogs/${id}/`;
                     else if (type === 'gallery') path = `gallery/${id}/`;
-                    else if (type === 'inquiry') path = `event-inquiries/${id}/`;
                     else if (type === 'decoration') path = `decorations/${id}/`;
                     else if (type === 'concert') path = `concert-bookings/${id}/`;
                     else if (type === 'festival') path = `festival-bookings/${id}/`;
@@ -450,6 +455,8 @@ const SimpleAdminDashboard = () => {
                     else if (type === 'festival_master') path = `festivals/${id}/`;
                     else if (type === 'wedding-event') path = `wedding-events/${id}/`;
                     else if (type === 'tournament') path = `tournaments/${id}/`;
+                    else if (type === 'catering') path = `catering/${id}/`;
+                    else if (type === 'performer') path = `performers/${id}/`;
 
                     await api.delete(path);
                     fetchAllData();
@@ -486,7 +493,6 @@ const SimpleAdminDashboard = () => {
             'Job Application': 'job',
             'Blog': 'blog',
             'Gallery': 'gallery',
-            'Inquiry': 'inquiry',
             'Decor': 'decoration',
             'Catering': 'catering',
             'Entertainment': 'performers',
@@ -496,7 +502,7 @@ const SimpleAdminDashboard = () => {
             'Concert Master': 'concert-master',
             'Festival Master': 'festival-master',
             'Sports Registration': 'sports-registration',
-            'Wedding Event': 'wedding-event'
+            'Wedding Ceremony': 'wedding-event'
         };
 
         const backendType = typeMap[item._deletedType];
@@ -568,7 +574,6 @@ const SimpleAdminDashboard = () => {
     const handleDecorSubmit = async () => {
         try {
             const finalForm = { ...decorForm };
-            if (!finalForm.image) finalForm.image = getRandomImage('Wedding');
 
             if (editingDecor) {
                 await api.put(`/decorations/${editingDecor.id}/`, finalForm);
@@ -594,7 +599,6 @@ const SimpleAdminDashboard = () => {
     const handleCateringSubmit = async () => {
         try {
             const finalForm = { ...cateringForm };
-            if (!finalForm.image) finalForm.image = getRandomImage('Catering');
 
             if (editingCatering) await api.put(`/catering/${editingCatering.id}/`, finalForm);
             else await api.post('/catering/', finalForm);
@@ -611,7 +615,6 @@ const SimpleAdminDashboard = () => {
     const handlePerformerSubmit = async () => {
         try {
             const finalForm = { ...performerForm };
-            if (!finalForm.image) finalForm.image = getRandomImage('Entertainment');
 
             if (editingPerformer) await api.put(`/performers/${editingPerformer.id}/`, finalForm);
             else await api.post('/performers/', finalForm);
@@ -628,7 +631,6 @@ const SimpleAdminDashboard = () => {
     const handleWeddingEventSubmit = async () => {
         try {
             const finalForm = { ...weddingEventForm };
-            if (!finalForm.image) finalForm.image = getRandomImage('Wedding');
 
             if (editingWeddingEvent) await api.put(`/wedding-events/${editingWeddingEvent.id}/`, finalForm);
             else await api.post('/wedding-events/', finalForm);
@@ -728,17 +730,34 @@ const SimpleAdminDashboard = () => {
     const handleConcertSubmit = async (overriddenForm = null) => {
         try {
             const currentForm = overriddenForm || concertForm;
-            const parseSimpleList = (str) => typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(str) ? str : []);
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const eventDate = new Date(currentForm.date);
+            const deadlineDate = new Date(currentForm.booking_deadline);
+
+            if (eventDate < today) {
+                setCustomAlert({ show: true, title: 'INVALID DATE', message: 'The event date cannot be in the past. Please schedule it for a future date.' });
+                return;
+            }
+            if (deadlineDate < today) {
+                setCustomAlert({ show: true, title: 'INVALID DEADLINE', message: 'The booking deadline must be a future date.' });
+                return;
+            }
+            if (deadlineDate >= eventDate) {
+                setCustomAlert({ show: true, title: 'DATE CONFLICT', message: 'The booking deadline must be set BEFORE the concert date.' });
+                return;
+            }
 
             const payload = {
                 ...currentForm,
                 popularTracks: parseSimpleList(currentForm.popularTracks),
-                highlights: parseSimplePairs(concertForm.highlights),
-                tickets: parsePipeList(concertForm.tickets, ['type', 'price']),
-                schedule: parsePipeList(concertForm.schedule, ['time', 'act']),
-                rules: parseSimpleList(concertForm.rules),
-                faqs: parsePipeList(concertForm.faqs, ['q', 'a']),
-                sponsors: parsePipeList(concertForm.sponsors, ['name', 'logo'])
+                highlights: parseSimplePairs(currentForm.highlights),
+                tickets: parsePipeList(currentForm.tickets, ['type', 'price']),
+                schedule: parsePipeList(currentForm.schedule, ['time', 'act']),
+                rules: parseSimpleList(currentForm.rules),
+                faqs: parsePipeList(currentForm.faqs, ['q', 'a']),
+                sponsors: parsePipeList(currentForm.sponsors, ['name', 'logo'])
             };
 
             if (editingConcert) await api.put(`/concerts/${editingConcert.id}/`, payload);
@@ -747,7 +766,7 @@ const SimpleAdminDashboard = () => {
             setEditingConcert(null);
             setConcertForm({
                 title: '', artist: '', artistBio: '', date: defaultPastDate, time: '18:00', venue: '', city: '', genre: '',
-                bannerImage: '', thumbnail: '', description: '', booking_deadline: defaultPastDate,
+                bannerImage: '', thumbnail: '', artistImage: '', description: '', booking_deadline: defaultPastDate,
                 popularTracks: '', highlights: '', tickets: '', schedule: '', rules: '', faqs: '', sponsors: ''
             });
             fetchAllData();
@@ -758,17 +777,24 @@ const SimpleAdminDashboard = () => {
     const handleFestivalSubmit = async (finalForm = null) => {
         const currentForm = finalForm || festivalForm;
         try {
-            const parseSimpleList = (str) => typeof str === 'string' ? str.split(',').map(s => s.trim()).filter(Boolean) : (Array.isArray(str) ? str : []);
-            const parsePipeList = (str, keys) => {
-                if (!str || !str.trim()) return [];
-                if (Array.isArray(str)) return str;
-                return str.split('\n').map(line => {
-                    const parts = line.split('|').map(s => s.trim());
-                    const obj = {};
-                    keys.forEach((k, i) => { obj[k] = parts[i] || ''; });
-                    return obj;
-                }).filter(o => Object.values(o).some(Boolean));
-            };
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const startDate = new Date(currentForm.startDate);
+            const deadlineDate = new Date(currentForm.booking_deadline);
+
+            if (startDate < today) {
+                setCustomAlert({ show: true, title: 'INVALID DATE', message: 'The festival start date cannot be in the past.' });
+                return;
+            }
+            if (deadlineDate < today) {
+                setCustomAlert({ show: true, title: 'INVALID DEADLINE', message: 'The booking deadline must be a future date.' });
+                return;
+            }
+            if (deadlineDate >= startDate) {
+                setCustomAlert({ show: true, title: 'DATE CONFLICT', message: 'The booking deadline must be set BEFORE the festival starts.' });
+                return;
+            }
+
 
             // highlights: each line = "icon | label | detail"
             const highlightsRaw = currentForm.highlights || '';
@@ -819,13 +845,19 @@ const SimpleAdminDashboard = () => {
     const handleTournamentSubmit = async (finalForm = null) => {
         const data = finalForm || tournamentForm;
         try {
-            if (!data.start_date || !data.registration_deadline) {
-                setCustomAlert({ show: true, title: 'MISSING DATES', message: 'Please set both the start date and registration deadline.' });
-                return;
-            }
-
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
             const start = new Date(data.start_date);
             const deadline = new Date(data.registration_deadline);
+
+            if (start < today) {
+                setCustomAlert({ show: true, title: 'INVALID DATE', message: 'Tournament start date must be in the future.' });
+                return;
+            }
+            if (deadline < today) {
+                setCustomAlert({ show: true, title: 'INVALID DEADLINE', message: 'Registration deadline must be a future date.' });
+                return;
+            }
 
             // Calculate 10 days before start
             const tenDaysBefore = new Date(start);
@@ -896,7 +928,6 @@ const SimpleAdminDashboard = () => {
                 <nav style={layoutStyles.nav}>
                     {[
                         { id: 'Overview', icon: '💎' },
-                        { id: 'Inquiries', icon: '✨' },
                         { id: 'Weddings', icon: '💍' },
                         { id: 'Concerts', icon: '🎸' },
                         { id: 'Festivals', icon: '🎭' },
@@ -933,7 +964,7 @@ const SimpleAdminDashboard = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                         <h1 style={layoutStyles.headerTitle}>{activeTab === 'Employment' ? 'Careers' : activeTab} Management</h1>
                         {/* Status Pulse for Admin */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.1)', padding: '5px 12px', borderRadius: '50px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(10, 185, 129, 0.1)', padding: '5px 12px', borderRadius: '50px' }}>
                             <div style={{ width: '8px', height: '8px', background: '#10B981', borderRadius: '50%', boxShadow: '0 0 8px #10B981' }}></div>
                             <span style={{ fontSize: '0.7rem', fontWeight: '900', color: '#10B981', textTransform: 'uppercase' }}>Live System</span>
                         </div>
@@ -1181,7 +1212,7 @@ const SimpleAdminDashboard = () => {
                                             )}
                                             {activeTab === 'Trash' && (
                                                 <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
-                                                    {['All', 'Wedding', 'Job Application', 'Blog', 'Inquiry', 'Decor', 'Gallery', 'Concert', 'Festival', 'Tournament', 'Sports Registration'].map(f => (
+                                                    {['All', 'Wedding', 'Job Application', 'Blog', 'Decor', 'Gallery', 'Concert', 'Festival', 'Tournament', 'Sports Registration'].map(f => (
                                                         <button
                                                             key={f}
                                                             onClick={() => setTrashFilter(f)}
@@ -1220,7 +1251,7 @@ const SimpleAdminDashboard = () => {
                                             )}
                                             {activeTab === 'Decorations' && (
                                                 <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                                                    {['All', 'Wedding', 'Sangeet', 'Mehendi', 'Haldi'].map(f => (
+                                                    {['All', ...new Set(decorations.map(d => d.category))].map(f => (
                                                         <button
                                                             key={f}
                                                             onClick={() => setDecorFilter(f)}
@@ -1271,6 +1302,7 @@ const SimpleAdminDashboard = () => {
                                                                     bannerImage: '', thumbnail: '', description: '', booking_deadline: defaultPastDate,
                                                                     popularTracks: '', highlights: '', tickets: '', schedule: '', rules: '', faqs: '', sponsors: ''
                                                                 });
+                                                                setPolicyAccepted(false);
                                                                 setShowCreateConcert(true);
                                                             } else {
                                                                 setEditingFestival(null);
@@ -1306,8 +1338,6 @@ const SimpleAdminDashboard = () => {
                                                     <tr><th style={thStyle}>Date</th><th style={thStyle}>Title</th><th style={thStyle}>Author</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
                                                 ) : activeTab === 'Employment' ? (
                                                     <tr><th style={thStyle}>Date</th><th style={thStyle}>Applicant</th><th style={thStyle}>Role</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
-                                                ) : activeTab === 'Inquiries' ? (
-                                                    <tr><th style={thStyle}>Date</th><th style={thStyle}>Inquiry Type</th><th style={thStyle}>Client</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
                                                 ) : activeTab === 'Users' ? (
                                                     <tr><th style={thStyle}>Username</th><th style={thStyle}>Role</th><th style={thStyle}>Email</th><th style={thStyle}>Phone</th></tr>
                                                 ) : activeTab === 'Gallery' ? (
@@ -1315,18 +1345,18 @@ const SimpleAdminDashboard = () => {
                                                 ) : (activeTab === 'Weddings' && weddingSubTab === 'Decor') ? (
                                                     <tr><th style={thStyle}>Name</th><th style={thStyle}>Category</th><th style={thStyle}>Price</th><th style={thStyle}>Action</th></tr>
                                                 ) : (activeTab === 'Weddings' && weddingSubTab === 'Catering') ? (
-                                                    <tr><th style={thStyle}>Package Name</th><th style={thStyle}>Price/Plate</th><th style={thStyle}>Action</th></tr>
+                                                    <tr><th style={thStyle}>Image</th><th style={thStyle}>Package Name</th><th style={thStyle}>Price/Plate</th><th style={thStyle}>Action</th></tr>
                                                 ) : (activeTab === 'Weddings' && weddingSubTab === 'Performer') ? (
-                                                    <tr><th style={thStyle}>Performer</th><th style={thStyle}>Category</th><th style={thStyle}>Base Price</th><th style={thStyle}>Action</th></tr>
+                                                    <tr><th style={thStyle}>Image</th><th style={thStyle}>Performer</th><th style={thStyle}>Category</th><th style={thStyle}>Base Price</th><th style={thStyle}>Action</th></tr>
                                                 ) : activeTab === 'Concerts' ? (
                                                     viewMaster ? (
-                                                        <tr><th style={thStyle}>Date</th><th style={thStyle}>Concert Name</th><th style={thStyle}>Artist</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
+                                                        <tr><th style={thStyle}>Image</th><th style={thStyle}>Date</th><th style={thStyle}>Concert Name</th><th style={thStyle}>Artist</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
                                                     ) : (
                                                         <tr><th style={thStyle}>Date</th><th style={thStyle}>Event</th><th style={thStyle}>User</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
                                                     )
                                                 ) : activeTab === 'Festivals' ? (
                                                     viewMaster ? (
-                                                        <tr><th style={thStyle}>Start Date</th><th style={thStyle}>Festival Name</th><th style={thStyle}>Theme</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
+                                                        <tr><th style={thStyle}>Image</th><th style={thStyle}>Start Date</th><th style={thStyle}>Festival Name</th><th style={thStyle}>Theme</th><th style={thStyle}>City</th><th style={thStyle}>Action</th></tr>
                                                     ) : (
                                                         <tr><th style={thStyle}>Date</th><th style={thStyle}>Festival</th><th style={thStyle}>User</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
                                                     )
@@ -1339,7 +1369,7 @@ const SimpleAdminDashboard = () => {
                                                         <tr><th style={thStyle}>Date</th><th style={thStyle}>Player/Team</th><th style={thStyle}>Tournament</th><th style={thStyle}>Players</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
                                                     )
                                                 ) : (activeTab === 'Weddings' && weddingSubTab === 'Ceremonies') ? (
-                                                    <tr><th style={thStyle}>Ceremony Name</th><th style={thStyle}>Description</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
+                                                    <tr><th style={thStyle}>Image</th><th style={thStyle}>Ceremony Name</th><th style={thStyle}>Description</th><th style={thStyle}>Status</th><th style={thStyle}>Action</th></tr>
                                                 ) : activeTab === 'Trash' ? (
                                                     <tr><th style={thStyle}>Date</th><th style={thStyle}>Type</th><th style={thStyle}>Title/Owner</th><th style={thStyle}>Original Status</th><th style={thStyle}>Action</th></tr>
                                                 ) : (
@@ -1381,7 +1411,7 @@ const SimpleAdminDashboard = () => {
                                                         <tr style={{ background: '#f8fafc' }}>
                                                             <td colSpan="4" style={{ padding: '15px 25px' }}>
                                                                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                                    {['All', 'Wedding', 'Sangeet', 'Mehendi', 'Haldi'].map(f => (
+                                                                    {['All', ...new Set(decorations.map(d => d.category))].map(f => (
                                                                         <button key={f} onClick={() => setDecorFilter(f)} style={{ ...layoutStyles.actionBtnAlt, background: decorFilter === f ? '#3B82F6' : '#fff', color: decorFilter === f ? '#fff' : '#555', padding: '6px 12px', fontSize: '11px' }}>{f}</button>
                                                                     ))}
                                                                     <button onClick={() => { setEditingDecor(null); setDecorForm({ name: '', category: 'Wedding', price: 0, image: '', description: '' }); setShowCreateDecor(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', padding: '8px 16px', fontSize: '11px' }}>+ Add Decor</button>
@@ -1405,32 +1435,56 @@ const SimpleAdminDashboard = () => {
                                                 {activeTab === 'Weddings' && weddingSubTab === 'Catering' && (
                                                     <>
                                                         <tr style={{ background: '#f8fafc' }}>
-                                                            <td colSpan="3" style={{ padding: '15px 25px' }}>
-                                                                            <button onClick={() => { setEditingCatering(null); setCateringForm({ name: '', description: '', price_per_plate: 0, image: '' }); setShowCreateCatering(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Catering Service</button>
-                                                                        </td>
-                                                                    </tr>
-                                                                    {catering.map(c => (
-                                                                        <tr key={c.id} style={layoutStyles.tr}>
-                                                                            <td style={tdStyle}><strong>{c.name}</strong></td>
-                                                                            <td style={tdStyle}>₹{parseFloat(c.price_per_plate).toLocaleString()}</td>
-                                                                            <td style={tdStyle}>
-                                                                                <button onClick={() => { setEditingCatering(c); setCateringForm(c); setShowCreateCatering(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                                                <button onClick={() => handleDeleteItem('catering', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
-                                                                </>
-                                                            )}
+                                                            <td colSpan="4" style={{ padding: '15px 25px' }}>
+                                                                <button onClick={() => { setEditingCatering(null); setCateringForm({ name: '', description: '', price_per_plate: 0, image: '' }); setShowCreateCatering(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Catering Service</button>
+                                                            </td>
+                                                        </tr>
+                                                        {catering.map(c => (
+                                                            <tr key={c.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}>
+                                                                    {c.image ? (
+                                                                        <img src={c.image} alt={c.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }} />
+                                                                    ) : (
+                                                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🍽️</div>
+                                                                    )}
+                                                                </td>
+                                                                <td style={tdStyle}><strong>{c.name}</strong></td>
+                                                                <td style={tdStyle}>₹{parseFloat(c.price_per_plate).toLocaleString()}</td>
+                                                                <td style={tdStyle}>
+                                                                    <button onClick={() => { setEditingCatering(c); setCateringForm(c); setShowCreateCatering(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                    <button onClick={() => handleDeleteItem('catering', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </>
+                                                )}
 
-                                                        {activeTab === 'Weddings' && weddingSubTab === 'Performer' && (
-                                                            <>
-                                                                <tr style={{ background: '#f8fafc' }}>
-                                                                    <td colSpan="4" style={{ padding: '15px 25px' }}>
-                                                                        <button onClick={() => { setEditingPerformer(null); setPerformerForm({ name: '', category: 'Singer', price: 0, image: '', description: '' }); setShowCreatePerformer(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Entertainment</button>
+                                                {activeTab === 'Weddings' && weddingSubTab === 'Performer' && (
+                                                    <>
+                                                        <tr style={{ background: '#f8fafc' }}>
+                                                            <td colSpan="5" style={{ padding: '15px 25px' }}>
+                                                                <button onClick={() => { setEditingPerformer(null); setPerformerForm({ name: '', category: 'Singer', price: 0, image: '', description: '' }); setShowCreatePerformer(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add Entertainment</button>
+                                                            </td>
+                                                        </tr>
+                                                        {Object.entries(performers.reduce((acc, p) => {
+                                                            (acc[p.category] = acc[p.category] || []).push(p);
+                                                            return acc;
+                                                        }, {})).map(([category, list]) => (
+                                                            <React.Fragment key={category}>
+                                                                <tr style={{ background: '#F8FAFC' }}>
+                                                                    <td colSpan="5" style={{ ...tdStyle, color: '#1E293B', fontWeight: '900', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '8px 25px' }}>
+                                                                        {category} ({list.length})
                                                                     </td>
                                                                 </tr>
-                                                                {performers.map(p => (
+                                                                {list.map(p => (
                                                                     <tr key={p.id} style={layoutStyles.tr}>
+                                                                        <td style={tdStyle}>
+                                                                            {p.image ? (
+                                                                                <img src={p.image} alt={p.name} style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #E2E8F0' }} />
+                                                                            ) : (
+                                                                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>🎤</div>
+                                                                            )}
+                                                                        </td>
                                                                         <td style={tdStyle}><strong>{p.name}</strong></td>
                                                                         <td style={tdStyle}>{p.category}</td>
                                                                         <td style={tdStyle}>₹{parseFloat(p.price).toLocaleString()}</td>
@@ -1440,393 +1494,410 @@ const SimpleAdminDashboard = () => {
                                                                         </td>
                                                                     </tr>
                                                                 ))}
-                                                            </>
-                                                        )}
-                                                        {activeTab === 'Weddings' && weddingSubTab === 'Ceremonies' && (
-                                                            <>
-                                                                <tr style={{ background: '#f8fafc' }}>
-                                                                    <td colSpan="4" style={{ padding: '15px 25px' }}>
-                                                                        <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
-                                                                    </td>
-                                                                </tr>
-                                                                {weddingEvents.map(e => (
-                                                                    <tr key={e.id} style={layoutStyles.tr}>
-                                                                        <td style={tdStyle}><strong>{e.name}</strong></td>
-                                                                        <td style={tdStyle}>{e.description ? (e.description.substring(0, 50) + '...') : 'No description'}</td>
-                                                                        <td style={tdStyle}>
-                                                                            <span style={{
-                                                                                ...statusBadge,
-                                                                                background: e.is_visible ? '#10B98120' : '#F59E0B20',
-                                                                                color: e.is_visible ? '#10B981' : '#F59E0B'
-                                                                            }}>
-                                                                                {e.is_visible ? 'Visible' : 'Hidden'}
-                                                                            </span>
-                                                                        </td>
-                                                                        <td style={tdStyle}>
-                                                                            <button onClick={() => {
-                                                                                setEditingWeddingEvent(e);
-                                                                                setWeddingEventForm({
-                                                                                    name: e.name,
-                                                                                    description: e.description,
-                                                                                    image: e.image || '',
-                                                                                    is_visible: e.is_visible
-                                                                                });
-                                                                                setShowCreateWeddingEvent(true);
-                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                                            <button onClick={() => handleToggleVisibility('wedding-event', e)} style={{ ...actionBtn, background: e.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>{e.is_visible ? '👁️' : '🙈'}</button>
-                                                                            <button onClick={() => handleDeleteItem('wedding-event', e.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </td>
-                                                                    </tr>
-                                                                ))}
-                                                            </>
-                                                        )}
-
-
-                                                        {activeTab === 'Employment' && jobApplications.map(j => {
-                                                            const isAutoRejected = j.status === 'Auto-Rejected';
-                                                            return (
-                                                                <tr key={j.id} style={layoutStyles.tr}>
-                                                                    <td style={tdStyle}>{new Date(j.applied_at).toLocaleDateString()}</td>
-                                                                    <td style={tdStyle}><strong>{j.full_name}</strong></td>
-                                                                    <td style={tdStyle}>{j.position}</td>
-                                                                    <td style={tdStyle}>
-                                                                        <span style={{
-                                                                            ...statusBadge,
-                                                                            background: isAutoRejected ? '#EF444420' : (j.status === 'Hired' ? '#10B98120' : (j.status === 'Rejected' ? '#EF444420' : '#F59E0B20')),
-                                                                            color: isAutoRejected ? '#EF4444' : (j.status === 'Hired' ? '#10B981' : (j.status === 'Rejected' ? '#EF4444' : '#F59E0B'))
-                                                                        }}>
-                                                                            {isAutoRejected ? '⏰ Auto-Rejected' : j.status}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td style={tdStyle}>
-                                                                        <button
-                                                                            onClick={() => !isAutoRejected && setInspectingBooking({ ...j, _type: 'job' })}
-                                                                            style={{ ...actionBtn, opacity: isAutoRejected ? 0.4 : 1, cursor: isAutoRejected ? 'not-allowed' : 'pointer' }}
-                                                                            title={isAutoRejected ? 'Auto-rejected after 7 days — cannot hire' : 'Review application'}
-                                                                        >Review</button>
-                                                                        <button onClick={() => handleDeleteItem('job', j.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                    </td>
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                        {activeTab === 'Blogs' && blogs
-                                                            .filter(b => blogFilter === 'All' || (blogFilter === 'Draft' ? !b.is_published : b.is_published))
-                                                            .map(b => (
-                                                                <tr key={b.id} style={layoutStyles.tr}>
-                                                                    <td style={tdStyle}>{new Date(b.created_at).toLocaleDateString()}</td>
-                                                                    <td style={tdStyle}><strong>{b.title}</strong></td>
-                                                                    <td style={tdStyle}>{b.author}</td>
-                                                                    <td style={tdStyle}>
-                                                                        <span style={{
-                                                                            ...statusBadge,
-                                                                            background: b.is_published ? '#10B98120' : '#F59E0B20',
-                                                                            color: b.is_published ? '#10B981' : '#F59E0B'
-                                                                        }}>
-                                                                            {b.is_published ? '🌐 Live' : '📝 Draft'}
-                                                                        </span>
-                                                                    </td>
-                                                                    <td style={tdStyle}>
-                                                                        <button onClick={() => handleTogglePublish(b)} style={actionBtn}>{b.is_published ? 'Unpublish' : 'Publish'}</button>
-                                                                        <button onClick={() => { setEditingBlog(b); setBlogForm(b); setShowCreateBlog(true); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                                        <button onClick={() => handleDeleteItem('blog', b.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        {activeTab === 'Inquiries' && eventInquiries.map(i => (
-                                                            <tr key={i.id} style={layoutStyles.tr}>
-                                                                <td style={tdStyle}>{new Date(i.created_at).toLocaleDateString()}</td>
-                                                                <td style={tdStyle}><strong>{i.event_type}</strong></td>
-                                                                <td style={tdStyle}>{i.contact_name}</td>
+                                                            </React.Fragment>
+                                                        ))}
+                                                    </>
+                                                )}
+                                                {activeTab === 'Weddings' && weddingSubTab === 'Ceremonies' && (
+                                                    <>
+                                                        <tr style={{ background: '#f8fafc' }}>
+                                                            <td colSpan="5" style={{ padding: '15px 25px' }}>
+                                                                <button onClick={() => { setEditingWeddingEvent(null); setWeddingEventForm({ name: '', description: '', image: '', is_visible: true }); setShowCreateWeddingEvent(true); }} style={{ ...layoutStyles.actionBtnPrimary, marginLeft: 'auto', display: 'block', padding: '8px 16px', fontSize: '11px' }}>+ Add New Ceremony Type</button>
+                                                            </td>
+                                                        </tr>
+                                                        {weddingEvents.map(e => (
+                                                            <tr key={e.id} style={layoutStyles.tr}>
+                                                                <td style={tdStyle}>
+                                                                    {e.image ? (
+                                                                        <img src={e.image} alt={e.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
+                                                                    ) : (
+                                                                        <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>💍</div>
+                                                                    )}
+                                                                </td>
+                                                                <td style={tdStyle}><strong>{e.name}</strong></td>
+                                                                <td style={tdStyle}>{e.description ? (e.description.substring(0, 50) + (e.description.length > 50 ? '...' : '')) : 'No description'}</td>
                                                                 <td style={tdStyle}>
                                                                     <span style={{
                                                                         ...statusBadge,
-                                                                        background: i.status === 'Reviewed' ? '#10B98120' : '#F59E0B20',
-                                                                        color: i.status === 'Reviewed' ? '#10B981' : '#F59E0B'
+                                                                        background: e.is_visible ? '#10B98120' : '#F59E0B20',
+                                                                        color: e.is_visible ? '#10B981' : '#F59E0B'
                                                                     }}>
-                                                                        {i.status}
+                                                                        {e.is_visible ? 'Visible' : 'Hidden'}
                                                                     </span>
                                                                 </td>
                                                                 <td style={tdStyle}>
-                                                                    <button onClick={() => setInspectingBooking({ ...i, _type: 'inquiry' })} style={actionBtn}>View</button>
-                                                                    <button onClick={() => handleDeleteItem('inquiry', i.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'nowrap', alignItems: 'center', minWidth: 'max-content' }}>
+                                                                        <button onClick={() => {
+                                                                            setEditingWeddingEvent(e);
+                                                                            setWeddingEventForm({
+                                                                                name: e.name,
+                                                                                description: e.description,
+                                                                                image: e.image || '',
+                                                                                is_visible: e.is_visible
+                                                                            });
+                                                                            setShowCreateWeddingEvent(true);
+                                                                        }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                        <button onClick={() => handleToggleVisibility('wedding-event', e)} style={{ ...actionBtn, background: e.is_visible ? '#10B981' : '#F59E0B' }}>{e.is_visible ? '👁️' : '🙈'}</button>
+                                                                        <button onClick={() => handleDeleteItem('wedding-event', e.id)} style={{ ...actionBtn, background: '#EF4444' }}>🗑️</button>
+                                                                    </div>
                                                                 </td>
                                                             </tr>
                                                         ))}
-                                                        {activeTab === 'Users' && users.map(u => (
-                                                            <tr key={u.id} style={layoutStyles.tr}>
-                                                                <td style={tdStyle}><strong>{u.username}</strong></td>
-                                                                <td style={tdStyle}>
-                                                                    <span style={{
-                                                                        ...statusBadge,
-                                                                        background: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF620' : '#3B82F620',
-                                                                        color: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF6' : '#3B82F6'
-                                                                    }}>
-                                                                        {u.is_superuser ? 'ADMIN (Super)' : u.role}
-                                                                    </span>
-                                                                </td>
-                                                                <td style={tdStyle}>{u.email}</td>
-                                                                <td style={tdStyle}>{u.phone || 'N/A'}</td>
-                                                            </tr>
-                                                        ))}
-                                                        {activeTab === 'Gallery' && gallery
-                                                            .filter(g => galleryFilter === 'All' || (galleryFilter === 'Draft' ? !g.is_published : g.is_published))
-                                                            .map(g => (
-                                                                <tr key={g.id} style={layoutStyles.tr}>
-                                                                    <td style={tdStyle}><strong>{g.title}</strong></td>
-                                                                    <td style={tdStyle}>{g.category}</td>
-                                                                    <td style={tdStyle}>
+                                                    </>
+                                                )}
+
+
+                                                {activeTab === 'Employment' && jobApplications.map(j => {
+                                                    const isAutoRejected = j.status === 'Auto-Rejected';
+                                                    return (
+                                                        <tr key={j.id} style={layoutStyles.tr}>
+                                                            <td style={tdStyle}>{new Date(j.applied_at).toLocaleDateString()}</td>
+                                                            <td style={tdStyle}><strong>{j.full_name}</strong></td>
+                                                            <td style={tdStyle}>{j.position}</td>
+                                                            <td style={tdStyle}>
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: isAutoRejected ? '#EF444420' : (j.status === 'Hired' ? '#10B98120' : (j.status === 'Rejected' ? '#EF444420' : '#F59E0B20')),
+                                                                    color: isAutoRejected ? '#EF4444' : (j.status === 'Hired' ? '#10B981' : (j.status === 'Rejected' ? '#EF4444' : '#F59E0B'))
+                                                                }}>
+                                                                    {isAutoRejected ? '⏰ Auto-Rejected' : j.status}
+                                                                </span>
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                <button
+                                                                    onClick={() => !isAutoRejected && setInspectingBooking({ ...j, _type: 'job' })}
+                                                                    style={{ ...actionBtn, opacity: isAutoRejected ? 0.4 : 1, cursor: isAutoRejected ? 'not-allowed' : 'pointer' }}
+                                                                    title={isAutoRejected ? 'Auto-rejected after 7 days — cannot hire' : 'Review application'}
+                                                                >Review</button>
+                                                                <button onClick={() => handleDeleteItem('job', j.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                                {activeTab === 'Blogs' && blogs
+                                                    .filter(b => blogFilter === 'All' || (blogFilter === 'Draft' ? !b.is_published : b.is_published))
+                                                    .map(b => (
+                                                        <tr key={b.id} style={layoutStyles.tr}>
+                                                            <td style={tdStyle}>{new Date(b.created_at).toLocaleDateString()}</td>
+                                                            <td style={tdStyle}><strong>{b.title}</strong></td>
+                                                            <td style={tdStyle}>{b.author}</td>
+                                                            <td style={tdStyle}>
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: b.is_published ? '#10B98120' : '#F59E0B20',
+                                                                    color: b.is_published ? '#10B981' : '#F59E0B'
+                                                                }}>
+                                                                    {b.is_published ? '🌐 Live' : '📝 Draft'}
+                                                                </span>
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                <button onClick={() => handleTogglePublish(b)} style={actionBtn}>{b.is_published ? 'Unpublish' : 'Publish'}</button>
+                                                                <button onClick={() => { setEditingBlog(b); setBlogForm(b); setShowCreateBlog(true); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                <button onClick={() => handleDeleteItem('blog', b.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                {activeTab === 'Users' && users.map(u => (
+                                                    <tr key={u.id} style={layoutStyles.tr}>
+                                                        <td style={tdStyle}><strong>{u.username}</strong></td>
+                                                        <td style={tdStyle}>
+                                                            <span style={{
+                                                                ...statusBadge,
+                                                                background: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF620' : '#3B82F620',
+                                                                color: (u.role === 'ADMIN' || u.is_superuser) ? '#8B5CF6' : '#3B82F6'
+                                                            }}>
+                                                                {u.is_superuser ? 'ADMIN (Super)' : u.role}
+                                                            </span>
+                                                        </td>
+                                                        <td style={tdStyle}>{u.email}</td>
+                                                        <td style={tdStyle}>{u.phone || 'N/A'}</td>
+                                                    </tr>
+                                                ))}
+                                                {activeTab === 'Gallery' && gallery
+                                                    .filter(g => galleryFilter === 'All' || (galleryFilter === 'Draft' ? !g.is_published : g.is_published))
+                                                    .map(g => (
+                                                        <tr key={g.id} style={layoutStyles.tr}>
+                                                            <td style={tdStyle}><strong>{g.title}</strong></td>
+                                                            <td style={tdStyle}>{g.category}</td>
+                                                            <td style={tdStyle}>
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: g.is_published ? '#10B98120' : '#F59E0B20',
+                                                                    color: g.is_published ? '#10B981' : '#F59E0B'
+                                                                }}>
+                                                                    {g.is_published ? 'Live' : 'Draft'}
+                                                                </span>
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                <button onClick={() => handleToggleGalleryPublish(g)} style={actionBtn}>{g.is_published ? 'Hide' : 'Show'}</button>
+                                                                <button onClick={() => handleDeleteItem('gallery', g.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                {activeTab === 'Decorations' && decorations
+                                                    .filter(d => decorFilter === 'All' || d.category === decorFilter)
+                                                    .map(d => (
+                                                        <tr key={d.id} style={layoutStyles.tr}>
+                                                            <td style={tdStyle}><strong>{d.name}</strong></td>
+                                                            <td style={tdStyle}>{d.category}</td>
+                                                            <td style={tdStyle}>₹{parseFloat(d.price).toLocaleString()}</td>
+                                                            <td style={tdStyle}>
+                                                                {d.image ? (
+                                                                    <img src={d.image} alt={d.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
+                                                                ) : 'No Image'}
+                                                            </td>
+                                                            <td style={tdStyle}>
+                                                                <button onClick={() => handleEditDecor(d)} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                <button onClick={() => handleDeleteItem('decoration', d.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+
+                                                {activeTab === 'Concerts' && (viewMaster ? concerts : concertBookings).map(c => (
+                                                    <tr key={c.id} style={layoutStyles.tr}>
+                                                        {viewMaster && (
+                                                            <td style={tdStyle}>
+                                                                <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                                                    {c.bannerImage || c.thumbnail ? (
+                                                                        <img src={c.bannerImage || c.thumbnail} alt="concert" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                                    ) : (
+                                                                        <span>🎸</span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                        <td style={tdStyle}>{c.date || c.event_date}</td>
+                                                        <td style={tdStyle}><strong>{c.title || c.concert_title}</strong></td>
+                                                        <td style={tdStyle}>{viewMaster ? c.artist : (c.username || 'User')}</td>
+                                                        <td style={tdStyle}>
+                                                            {viewMaster ? (c.city) : (
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: c.status === 'Confirmed' ? '#10B98120' : '#F59E0B20',
+                                                                    color: c.status === 'Confirmed' ? '#10B981' : '#F59E0B'
+                                                                }}>{c.status}</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            {viewMaster ? (
+                                                                <>
+                                                                    <button onClick={() => {
+                                                                        setEditingConcert(c);
+                                                                        setConcertForm({
+                                                                            ...c,
+                                                                            popularTracks: (c.popularTracks || []).join(', '),
+                                                                            highlights: Object.entries(c.highlights || {}).map(([k, v]) => `${k}:${v}`).join(', '),
+                                                                            tickets: (c.tickets || []).map(t => `${t.type}|${t.price}`).join('\n'),
+                                                                            schedule: (c.schedule || []).map(s => `${s.time}|${s.act}`).join('\n'),
+                                                                            rules: (c.rules || []).join(', '),
+                                                                            faqs: (c.faqs || []).map(f => `${f.q}|${f.a}`).join('\n'),
+                                                                            sponsors: (c.sponsors || []).map(s => `${s.name}|${s.logo}`).join('\n')
+                                                                        });
+                                                                        setShowCreateConcert(true);
+                                                                    }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                    <button onClick={() => handleToggleVisibility('concert', c)} style={{ ...actionBtn, background: c.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
+                                                                        {c.is_visible ? 'Show 👁️' : 'Hide 🙈'}
+                                                                    </button>
+                                                                    <button onClick={() => handleDeleteItem('concert_master', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button onClick={() => setInspectingBooking({ ...c, _type: 'concert' })} style={actionBtn}>View</button>
+                                                                    <button onClick={() => { setEditingConcertBooking(c); setConcertBookingForm({ status: c.status, ticket_type: c.ticket_type, quantity: c.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                    <button onClick={() => handleDeleteItem('concert', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+
+                                                {activeTab === 'Festivals' && (viewMaster ? festivals : festivalBookings).map(f => (
+                                                    <tr key={f.id} style={layoutStyles.tr}>
+                                                        {viewMaster && (
+                                                            <td style={tdStyle}>
+                                                                <img src={f.image} alt="festival" style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
+                                                            </td>
+                                                        )}
+                                                        <td style={tdStyle}>{f.startDate || f.booking_date}</td>
+                                                        <td style={tdStyle}><strong>{f.name || f.festival_name}</strong></td>
+                                                        <td style={tdStyle}>{viewMaster ? f.theme : (f.username || 'User')}</td>
+                                                        <td style={tdStyle}>
+                                                            {viewMaster ? (f.city) : (
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: f.status === 'Confirmed' ? '#10B98120' : '#EF444420',
+                                                                    color: f.status === 'Confirmed' ? '#10B981' : '#EF4444'
+                                                                }}>{f.status}</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            {viewMaster ? (
+                                                                <>
+                                                                    <button onClick={() => {
+                                                                        setEditingFestival(f);
+                                                                        setFestivalForm({
+                                                                            ...f,
+                                                                            highlights: (f.highlights || []).map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n'),
+                                                                            attractions: (f.attractions || []).map(a => `${a.name}|${a.description}`).join('\n'),
+                                                                            passes: (f.passes || []).map(p => `${p.type}|${p.price}|${p.benefits}|${p.days}`).join('\n'),
+                                                                            schedule: (f.schedule || []).map(s => `${s.day}|${s.event}`).join('\n'),
+                                                                            rules: (f.rules || []).join(', '),
+                                                                            faqs: (f.faqs || []).map(q => `${q.question}|${q.answer}`).join('\n')
+                                                                        });
+                                                                        setShowCreateFestival(true);
+                                                                    }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                    <button onClick={() => handleToggleVisibility('festival', f)} style={{ ...actionBtn, background: f.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
+                                                                        {f.is_visible ? 'Show 👁️' : 'Hide 🙈'}
+                                                                    </button>
+                                                                    <button onClick={() => handleDeleteItem('festival_master', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button onClick={() => setInspectingBooking({ ...f, _type: 'festival' })} style={actionBtn}>View</button>
+                                                                    <button onClick={() => { setEditingFestivalBooking(f); setFestivalBookingForm({ status: f.status, pass_type: f.pass_type, quantity: f.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                    <button onClick={() => handleDeleteItem('festival', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+
+                                                {activeTab === 'Sports' && (sportsSubTab === 'Tournaments' ? tournaments : sportsSubTab === 'Fixtures' ? fixtures : registrations).map(r => (
+                                                    <tr key={r.id} style={layoutStyles.tr}>
+                                                        <td style={tdStyle}>{sportsSubTab === 'Tournaments' ? `${r.start_date}${r.end_date ? ' to ' + r.end_date : ''}` : (r.date || r.registered_at || r.match_date)}</td>
+                                                        <td style={tdStyle}>
+                                                            <strong>{sportsSubTab === 'Fixtures' ? r.player1_name : (r.name || r.team_name || r.player_name || r.username)}</strong>
+                                                        </td>
+                                                        <td style={tdStyle}>
+                                                            {sportsSubTab === 'Fixtures' ? r.player2_name : (r.sport || r.tournament_name || 'Individual')}
+                                                        </td>
+                                                        {sportsSubTab === 'Registrations' && (
+                                                            <td style={{ ...tdStyle, minWidth: '150px' }}>
+                                                                <div style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>
+                                                                    <div style={{ color: '#3B82F6', fontWeight: '800', marginBottom: '2px' }}>
+                                                                        SQUAD ({r.players?.length || 0}):
+                                                                    </div>
+                                                                    <div style={{ color: '#1E293B', fontWeight: '600' }}>
+                                                                        {r.players?.length > 0 ? r.players.join(', ') : 'No players listed'}
+                                                                    </div>
+
+                                                                    {r.substitutes?.length > 0 && (
+                                                                        <div style={{ marginTop: '5px', borderTop: '1px dashed #E2E8F0', paddingTop: '3px' }}>
+                                                                            <div style={{ color: '#64748B', fontWeight: '800', fontSize: '0.7rem' }}>
+                                                                                SUBS ({r.substitutes.length}):
+                                                                            </div>
+                                                                            <div style={{ color: '#64748B' }}>
+                                                                                {r.substitutes.join(', ')}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        )}
+                                                        <td style={tdStyle}>
+                                                            {sportsSubTab === 'Fixtures' ? (
+                                                                <span style={{ fontWeight: 'bold', color: '#10B981' }}>{r.winner_name || 'TBD'}</span>
+                                                            ) : sportsSubTab === 'Registrations' && (r.status === 'Winner' || r.status === 'Semi-Finalist') ? (
+                                                                <div style={{ textAlign: 'center' }}>
+                                                                    <div style={{ ...statusBadge, background: '#10B98120', color: '#10B981' }}>{r.status}</div>
+                                                                    <div style={{ fontSize: '0.75rem', marginTop: '5px', fontWeight: '800', color: r.prize_status === 'Paid' ? '#10B981' : '#F59E0B' }}>
+                                                                        {r.prize_status}: ₹{r.winning_amount}
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B98120' : '#F59E0B20',
+                                                                    color: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B981' : '#F59E0B'
+                                                                }}>{r.status}</span>
+                                                            )}
+                                                        </td>
+
+                                                        {sportsSubTab === 'Fixtures' && (
+                                                            <td style={tdStyle}>
+                                                                <span style={{
+                                                                    ...statusBadge,
+                                                                    background: r.status === 'Completed' ? '#10B98120' : '#F59E0B20',
+                                                                    color: r.status === 'Completed' ? '#10B981' : '#F59E0B'
+                                                                }}>{r.status}</span>
+                                                            </td>
+                                                        )}
+                                                        {sportsSubTab === 'Fixtures' && (
+                                                            <td style={tdStyle}>
+                                                                {(() => {
+                                                                    const tourney = tournaments.find(t => t.id === r.tournament);
+                                                                    return (
                                                                         <span style={{
-                                                                            ...statusBadge,
-                                                                            background: g.is_published ? '#10B98120' : '#F59E0B20',
-                                                                            color: g.is_published ? '#10B981' : '#F59E0B'
+                                                                            fontSize: '0.7rem',
+                                                                            color: tourney?.status === 'Completed' ? '#10B981' : '#6B7280',
+                                                                            fontWeight: '800'
                                                                         }}>
-                                                                            {g.is_published ? 'Live' : 'Draft'}
+                                                                            {tourney?.status ? tourney.status.toUpperCase() : 'UNKNOWN'}
                                                                         </span>
-                                                                    </td>
-                                                                    <td style={tdStyle}>
-                                                                        <button onClick={() => handleToggleGalleryPublish(g)} style={actionBtn}>{g.is_published ? 'Hide' : 'Show'}</button>
-                                                                        <button onClick={() => handleDeleteItem('gallery', g.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                        {activeTab === 'Decorations' && decorations
-                                                            .filter(d => decorFilter === 'All' || d.category === decorFilter)
-                                                            .map(d => (
-                                                                <tr key={d.id} style={layoutStyles.tr}>
-                                                                    <td style={tdStyle}><strong>{d.name}</strong></td>
-                                                                    <td style={tdStyle}>{d.category}</td>
-                                                                    <td style={tdStyle}>₹{parseFloat(d.price).toLocaleString()}</td>
-                                                                    <td style={tdStyle}>
-                                                                        {d.image ? (
-                                                                            <img src={d.image} alt={d.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
-                                                                        ) : 'No Image'}
-                                                                    </td>
-                                                                    <td style={tdStyle}>
-                                                                        <button onClick={() => handleEditDecor(d)} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                                        <button onClick={() => handleDeleteItem('decoration', d.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-
-                                                        {activeTab === 'Concerts' && (viewMaster ? concerts : concertBookings).map(c => (
-                                                            <tr key={c.id} style={layoutStyles.tr}>
-                                                                <td style={tdStyle}>{c.date || c.event_date}</td>
-                                                                <td style={tdStyle}><strong>{c.title || c.concert_title}</strong></td>
-                                                                <td style={tdStyle}>{viewMaster ? c.artist : (c.username || 'User')}</td>
-                                                                <td style={tdStyle}>
-                                                                    {viewMaster ? (c.city) : (
-                                                                        <span style={{
-                                                                            ...statusBadge,
-                                                                            background: c.status === 'Confirmed' ? '#10B98120' : '#F59E0B20',
-                                                                            color: c.status === 'Confirmed' ? '#10B981' : '#F59E0B'
-                                                                        }}>{c.status}</span>
-                                                                    )}
-                                                                </td>
-                                                                <td style={tdStyle}>
-                                                                    {viewMaster ? (
-                                                                        <>
-                                                                            <button onClick={() => {
-                                                                                setEditingConcert(c);
-                                                                                setConcertForm({
-                                                                                    ...c,
-                                                                                    popularTracks: (c.popularTracks || []).join(', '),
-                                                                                    highlights: Object.entries(c.highlights || {}).map(([k, v]) => `${k}:${v}`).join(', '),
-                                                                                    tickets: (c.tickets || []).map(t => `${t.type}|${t.price}`).join('\n'),
-                                                                                    schedule: (c.schedule || []).map(s => `${s.time}|${s.act}`).join('\n'),
-                                                                                    rules: (c.rules || []).join(', '),
-                                                                                    faqs: (c.faqs || []).map(f => `${f.q}|${f.a}`).join('\n'),
-                                                                                    sponsors: (c.sponsors || []).map(s => `${s.name}|${s.logo}`).join('\n')
-                                                                                });
-                                                                                setShowCreateConcert(true);
-                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                                            <button onClick={() => handleToggleVisibility('concert', c)} style={{ ...actionBtn, background: c.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
-                                                                                {c.is_visible ? 'Show 👁️' : 'Hide 🙈'}
-                                                                            </button>
-                                                                            <button onClick={() => handleDeleteItem('concert_master', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <button onClick={() => setInspectingBooking({ ...c, _type: 'concert' })} style={actionBtn}>View</button>
-                                                                            <button onClick={() => { setEditingConcertBooking(c); setConcertBookingForm({ status: c.status, ticket_type: c.ticket_type, quantity: c.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                                            <button onClick={() => handleDeleteItem('concert', c.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-
-                                                        {activeTab === 'Festivals' && (viewMaster ? festivals : festivalBookings).map(f => (
-                                                            <tr key={f.id} style={layoutStyles.tr}>
-                                                                <td style={tdStyle}>{f.startDate || f.booking_date}</td>
-                                                                <td style={tdStyle}><strong>{f.name || f.festival_name}</strong></td>
-                                                                <td style={tdStyle}>{viewMaster ? f.theme : (f.username || 'User')}</td>
-                                                                <td style={tdStyle}>
-                                                                    {viewMaster ? (f.city) : (
-                                                                        <span style={{
-                                                                            ...statusBadge,
-                                                                            background: f.status === 'Confirmed' ? '#10B98120' : '#EF444420',
-                                                                            color: f.status === 'Confirmed' ? '#10B981' : '#EF4444'
-                                                                        }}>{f.status}</span>
-                                                                    )}
-                                                                </td>
-                                                                <td style={tdStyle}>
-                                                                    {viewMaster ? (
-                                                                        <>
-                                                                            <button onClick={() => {
-                                                                                setEditingFestival(f);
-                                                                                setFestivalForm({
-                                                                                    ...f,
-                                                                                    highlights: (f.highlights || []).map(h => `${h.icon} | ${h.label} | ${h.detail}`).join('\n'),
-                                                                                    attractions: (f.attractions || []).map(a => `${a.name}|${a.description}`).join('\n'),
-                                                                                    passes: (f.passes || []).map(p => `${p.type}|${p.price}|${p.benefits}|${p.days}`).join('\n'),
-                                                                                    schedule: (f.schedule || []).map(s => `${s.day}|${s.event}`).join('\n'),
-                                                                                    rules: (f.rules || []).join(', '),
-                                                                                    faqs: (f.faqs || []).map(q => `${q.question}|${q.answer}`).join('\n')
-                                                                                });
-                                                                                setShowCreateFestival(true);
-                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                                            <button onClick={() => handleToggleVisibility('festival', f)} style={{ ...actionBtn, background: f.is_visible ? '#10B981' : '#F59E0B', marginLeft: '5px' }}>
-                                                                                {f.is_visible ? 'Show 👁️' : 'Hide 🙈'}
-                                                                            </button>
-                                                                            <button onClick={() => handleDeleteItem('festival_master', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <button onClick={() => setInspectingBooking({ ...f, _type: 'festival' })} style={actionBtn}>View</button>
-                                                                            <button onClick={() => { setEditingFestivalBooking(f); setFestivalBookingForm({ status: f.status, pass_type: f.pass_type, quantity: f.quantity }); }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                                            <button onClick={() => handleDeleteItem('festival', f.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-
-                                                        {activeTab === 'Sports' && (sportsSubTab === 'Tournaments' ? tournaments : sportsSubTab === 'Fixtures' ? fixtures : registrations).map(r => (
-                                                            <tr key={r.id} style={layoutStyles.tr}>
-                                                                <td style={tdStyle}>{sportsSubTab === 'Tournaments' ? `${r.start_date}${r.end_date ? ' to ' + r.end_date : ''}` : (r.date || r.registered_at || r.match_date)}</td>
-                                                                <td style={tdStyle}>
-                                                                    <strong>{sportsSubTab === 'Fixtures' ? r.player1_name : (r.name || r.team_name || r.player_name || r.username)}</strong>
-                                                                </td>
-                                                                <td style={tdStyle}>
-                                                                    {sportsSubTab === 'Fixtures' ? r.player2_name : (r.sport || r.tournament_name || 'Individual')}
-                                                                </td>
-                                                                {sportsSubTab === 'Registrations' && (
-                                                                    <td style={{ ...tdStyle, minWidth: '150px' }}>
-                                                                        <div style={{ fontSize: '0.75rem', lineHeight: '1.4' }}>
-                                                                            <div style={{ color: '#3B82F6', fontWeight: '800', marginBottom: '2px' }}>
-                                                                                SQUAD ({r.players?.length || 0}):
-                                                                            </div>
-                                                                            <div style={{ color: '#1E293B', fontWeight: '600' }}>
-                                                                                {r.players?.length > 0 ? r.players.join(', ') : 'No players listed'}
-                                                                            </div>
-
-                                                                            {r.substitutes?.length > 0 && (
-                                                                                <div style={{ marginTop: '5px', borderTop: '1px dashed #E2E8F0', paddingTop: '3px' }}>
-                                                                                    <div style={{ color: '#64748B', fontWeight: '800', fontSize: '0.7rem' }}>
-                                                                                        SUBS ({r.substitutes.length}):
-                                                                                    </div>
-                                                                                    <div style={{ color: '#64748B' }}>
-                                                                                        {r.substitutes.join(', ')}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </td>
-                                                                )}
-                                                                <td style={tdStyle}>
-                                                                    {sportsSubTab === 'Fixtures' ? (
-                                                                        <span style={{ fontWeight: 'bold', color: '#10B981' }}>{r.winner_name || 'TBD'}</span>
-                                                                    ) : sportsSubTab === 'Registrations' && (r.status === 'Winner' || r.status === 'Semi-Finalist') ? (
-                                                                        <div style={{ textAlign: 'center' }}>
-                                                                            <div style={{ ...statusBadge, background: '#10B98120', color: '#10B981' }}>{r.status}</div>
-                                                                            <div style={{ fontSize: '0.75rem', marginTop: '5px', fontWeight: '800', color: r.prize_status === 'Paid' ? '#10B981' : '#F59E0B' }}>
-                                                                                {r.prize_status}: ₹{r.winning_amount}
-                                                                            </div>
-                                                                        </div>
-                                                                    ) : (
-                                                                        <span style={{
-                                                                            ...statusBadge,
-                                                                            background: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B98120' : '#F59E0B20',
-                                                                            color: (r.status === 'Confirmed' || r.status === 'Registration Open' || r.status === 'Winner') ? '#10B981' : '#F59E0B'
-                                                                        }}>{r.status}</span>
-                                                                    )}
-                                                                </td>
-                                                                {sportsSubTab === 'Fixtures' && (
-                                                                    <td style={tdStyle}>
-                                                                        {(() => {
-                                                                            const tourney = tournaments.find(t => t.id === r.tournament);
-                                                                            return (
-                                                                                <span style={{
-                                                                                    fontSize: '0.7rem',
-                                                                                    color: tourney?.status === 'Completed' ? '#10B981' : '#6B7280',
-                                                                                    fontWeight: '800'
-                                                                                }}>
-                                                                                    {tourney?.status.toUpperCase()}
-                                                                                </span>
-                                                                            );
-                                                                        })()}
-                                                                    </td>
-                                                                )}
-                                                                <td style={tdStyle}>
-                                                                    {sportsSubTab === 'Fixtures' ? (
-                                                                        <>
-                                                                            <button onClick={() => {
-                                                                                setEditingFixture(r);
-                                                                                setFixtureForm({
-                                                                                    tournament: r.tournament,
-                                                                                    player1: r.player1 || '',
-                                                                                    player2: r.player2 || '',
-                                                                                    player1_tbd_label: r.player1_tbd_label || '',
-                                                                                    player2_tbd_label: r.player2_tbd_label || '',
-                                                                                    winner: r.winner || '',
-                                                                                    status: r.status,
-                                                                                    match_date: r.match_date ? r.match_date.slice(0, 16) : ''
-                                                                                });
-                                                                                setShowCreateFixture(true);
-                                                                            }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit/Result</button>
-                                                                            <button onClick={async () => { await api.delete(`/fixtures/${r.id}/`); fetchAllData(); }} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    ) : sportsSubTab === 'Tournaments' ? (
-                                                                        <>
-                                                                            <button onClick={() => { setEditingTournament(r); setTournamentForm({ ...r }); setShowCreateTournament(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
-                                                                            <button onClick={() => handleDeleteItem('tournament', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <button onClick={() => setInspectingBooking({ ...r, _type: 'sports' })} style={actionBtn}>View</button>
-                                                                            <button onClick={() => {
-                                                                                setEditingSportsReg(r);
-                                                                                setSportsRegForm({
-                                                                                    status: r.status,
-                                                                                    team_name: r.team_name || '',
-                                                                                    player_name: r.player_name || '',
-                                                                                    registration_type: r.registration_type,
-                                                                                    winning_amount: r.winning_amount || 0,
-                                                                                    prize_status: r.prize_status || 'Pending'
-                                                                                });
-                                                                            }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
-                                                                            <button onClick={() => handleDeleteItem('sports', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
-                                                                        </>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                        {activeTab === 'Trash' && deletedItems
-                                                            .filter(item => trashFilter === 'All' || item._deletedType === trashFilter)
-                                                            .map((item, idx) => (
-                                                                <tr key={`${item.id}-${idx}`} style={layoutStyles.tr}>
-                                                                    <td style={tdStyle}>{new Date(item.booking_date || item.created_at || item.applied_at || item.registration_date).toLocaleDateString()}</td>
-                                                                    <td style={tdStyle}><span style={{ ...statusBadge, background: '#eee', color: '#666' }}>{item._deletedType}</span></td>
-                                                                    <td style={tdStyle}>
-                                                                        <strong>{item.username || item.full_name || item.title || item.name || item.team_name || item.player_name || 'N/A'}</strong>
-                                                                    </td>
-                                                                    <td style={tdStyle}>{item.status || (item.is_published ? 'Published' : 'Draft')}</td>
-                                                                    <td style={tdStyle}>
-                                                                        <button onClick={() => handleRestoreItem(item)} style={{ ...layoutStyles.actionBtnPrimary, padding: '5px 12px', fontSize: '0.75rem' }}>Restore</button>
-                                                                    </td>
-                                                                </tr>
-                                                            ))}
-                                                    </tbody>
+                                                                    );
+                                                                })()}
+                                                            </td>
+                                                        )}
+                                                        <td style={tdStyle}>
+                                                            {sportsSubTab === 'Fixtures' ? (
+                                                                <>
+                                                                    <button onClick={() => {
+                                                                        setEditingFixture(r);
+                                                                        setFixtureForm({
+                                                                            tournament: r.tournament,
+                                                                            player1: r.player1 || '',
+                                                                            player2: r.player2 || '',
+                                                                            player1_tbd_label: r.player1_tbd_label || '',
+                                                                            player2_tbd_label: r.player2_tbd_label || '',
+                                                                            winner: r.winner || '',
+                                                                            status: r.status,
+                                                                            match_date: r.match_date ? r.match_date.slice(0, 16) : ''
+                                                                        });
+                                                                        setShowCreateFixture(true);
+                                                                    }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit/Result</button>
+                                                                    <button onClick={async () => { await api.delete(`/fixtures/${r.id}/`); fetchAllData(); }} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            ) : sportsSubTab === 'Tournaments' ? (
+                                                                <>
+                                                                    <button onClick={() => { setEditingTournament(r); setTournamentForm({ ...r }); setShowCreateTournament(true); }} style={{ ...actionBtn, background: '#8B5CF6' }}>Edit</button>
+                                                                    <button onClick={() => handleDeleteItem('tournament', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <button onClick={() => setInspectingBooking({ ...r, _type: 'sports' })} style={actionBtn}>View</button>
+                                                                    <button onClick={() => {
+                                                                        setEditingSportsReg(r);
+                                                                        setSportsRegForm({
+                                                                            status: r.status,
+                                                                            team_name: r.team_name || '',
+                                                                            player_name: r.player_name || '',
+                                                                            registration_type: r.registration_type,
+                                                                            winning_amount: r.winning_amount || 0,
+                                                                            prize_status: r.prize_status || 'Pending'
+                                                                        });
+                                                                    }} style={{ ...actionBtn, background: '#8B5CF6', marginLeft: '5px' }}>Edit</button>
+                                                                    <button onClick={() => handleDeleteItem('sports', r.id)} style={{ ...actionBtn, background: '#EF4444', marginLeft: '5px' }}>🗑️</button>
+                                                                </>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                                {activeTab === 'Trash' && deletedItems
+                                                    .filter(item => trashFilter === 'All' || item._deletedType === trashFilter)
+                                                    .map((item, idx) => (
+                                                        <tr key={`${item.id}-${idx}`} style={layoutStyles.tr}>
+                                                            <td style={tdStyle}>{new Date(item.booking_date || item.created_at || item.applied_at || item.registration_date).toLocaleDateString()}</td>
+                                                            <td style={tdStyle}><span style={{ ...statusBadge, background: '#eee', color: '#666' }}>{item._deletedType}</span></td>
+                                                            <td style={tdStyle}>
+                                                                <strong>{item.username || item.full_name || item.title || item.name || item.team_name || item.player_name || 'N/A'}</strong>
+                                                            </td>
+                                                            <td style={tdStyle}>{item.status || (item.is_published ? 'Published' : 'Draft')}</td>
+                                                            <td style={tdStyle}>
+                                                                <button onClick={() => handleRestoreItem(item)} style={{ ...layoutStyles.actionBtnPrimary, padding: '5px 12px', fontSize: '0.75rem' }}>Restore</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                            </tbody>
                                         </table>
                                     </div>
                                 </div>
@@ -1854,32 +1925,6 @@ const SimpleAdminDashboard = () => {
                                     </p></div>
                                     <div><label style={labelStyle}>Contact Point</label><p style={textValueStyle}>{inspectingBooking.user_email || inspectingBooking.phone || inspectingBooking.email || inspectingBooking.contact_phone || inspectingBooking.contact_email}</p></div>
                                 </div>
-
-                                {inspectingBooking._type === 'inquiry' && (
-                                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '20px', borderRadius: '15px' }}>
-                                        <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: '5px' }}>✨ Inquiry Details</label>
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '10px' }}>
-                                            <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Event Type:</span> <br /> <strong>{inspectingBooking.event_type}</strong></div>
-                                            <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Event Date:</span> <br /> <strong>{inspectingBooking.event_date}</strong></div>
-                                            <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Location Type:</span> <br /> <strong>{inspectingBooking.location_type}</strong></div>
-                                            <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Venue:</span> <br /> <strong>{inspectingBooking.venue_name || 'N/A'}</strong></div>
-                                            <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Guests:</span> <br /> <strong>{inspectingBooking.guests}</strong></div>
-                                            <div><span style={{ fontSize: '0.8rem', color: '#718096' }}>Style:</span> <br /> <strong>{inspectingBooking.service_style}</strong></div>
-                                        </div>
-                                        {inspectingBooking.cuisine_preferences && (
-                                            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-                                                <span style={{ fontSize: '0.8rem', color: '#718096' }}>Preferences:</span>
-                                                <p style={{ marginTop: '5px', fontSize: '0.85rem' }}>{inspectingBooking.cuisine_preferences}</p>
-                                            </div>
-                                        )}
-                                        {inspectingBooking.internal_notes && (
-                                            <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee' }}>
-                                                <span style={{ fontSize: '0.8rem', color: '#718096' }}>Notes:</span>
-                                                <p style={{ marginTop: '5px', fontSize: '0.85rem' }}>{inspectingBooking.internal_notes}</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
 
                                 {inspectingBooking._type === 'wedding' && (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
@@ -2132,9 +2177,10 @@ const SimpleAdminDashboard = () => {
                                     <label style={labelStyle}>Category</label>
                                     <select style={inputStyle} value={galleryForm.category} onChange={e => setGalleryForm({ ...galleryForm, category: e.target.value })}>
                                         <option value="Wedding">Wedding</option>
-                                        <option value="Sangeet">Sangeet</option>
-                                        <option value="Mehendi">Mehendi</option>
                                         <option value="Decor">Decor</option>
+                                        <option value="Performance">Performance</option>
+                                        <option value="Catering">Catering</option>
+                                        <option value="Other">Other</option>
                                     </select>
                                 </div>
                                 <div><label style={labelStyle}>Description</label><textarea style={{ ...inputStyle, minHeight: '100px' }} value={galleryForm.description} onChange={e => setGalleryForm({ ...galleryForm, description: e.target.value })} /></div>
@@ -2169,10 +2215,9 @@ const SimpleAdminDashboard = () => {
                                                 ))
                                             ) : (
                                                 <>
-                                                    <option value="Wedding Ceremony">Wedding Ceremony</option>
-                                                    <option value="Sangeet Ceremony">Sangeet Ceremony</option>
-                                                    <option value="Mehendi Ceremony">Mehendi Ceremony</option>
-                                                    <option value="Haldi Ceremony">Haldi Ceremony</option>
+                                                    {weddingEvents.map(ev => (
+                                                        <option key={ev.id} value={ev.name}>{ev.name}</option>
+                                                    ))}
                                                 </>
                                             )}
                                             <option value="Other">Other</option>
@@ -2478,11 +2523,11 @@ const SimpleAdminDashboard = () => {
             )}
 
             {showCreateConcert && (
-                <div style={layoutStyles.modalOverlay} onClick={() => setShowCreateConcert(false)}>
+                <div style={layoutStyles.modalOverlay} onClick={() => { setShowCreateConcert(false); setPolicyAccepted(false); }}>
                     <div style={{ ...layoutStyles.modalContent, maxWidth: '850px' }} onClick={e => e.stopPropagation()}>
                         <div style={layoutStyles.modalHeader}>
                             <h2 style={{ fontSize: '1.4rem', margin: 0, fontWeight: '900' }}>{editingConcert ? 'EDIT CONCERT' : 'NEW CONCERT'}</h2>
-                            <button onClick={() => setShowCreateConcert(false)} style={layoutStyles.closeBtn}>&times;</button>
+                            <button onClick={() => { setShowCreateConcert(false); setPolicyAccepted(false); }} style={layoutStyles.closeBtn}>&times;</button>
                         </div>
                         <div style={{ ...layoutStyles.modalBody, display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             <div><label style={labelStyle}>Concert Title</label><input style={inputStyle} value={concertForm.title} onChange={e => setConcertForm({ ...concertForm, title: e.target.value })} /></div>
@@ -2501,6 +2546,14 @@ const SimpleAdminDashboard = () => {
                             <div>
                                 <label style={labelStyle}>Banner Image URL</label>
                                 <input style={inputStyle} placeholder="https://..." value={concertForm.bannerImage} onChange={e => setConcertForm({ ...concertForm, bannerImage: e.target.value })} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Thumbnail URL (Sidebar Image)</label>
+                                <input style={inputStyle} placeholder="https://..." value={concertForm.thumbnail} onChange={e => setConcertForm({ ...concertForm, thumbnail: e.target.value })} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Artist Profile Image URL (Appears in Artist Profile section)</label>
+                                <input style={inputStyle} placeholder="https://..." value={concertForm.artistImage} onChange={e => setConcertForm({ ...concertForm, artistImage: e.target.value })} />
                             </div>
                             <div><label style={labelStyle}>Artist Biography</label><textarea style={{ ...inputStyle, minHeight: '60px' }} value={concertForm.artistBio} onChange={e => setConcertForm({ ...concertForm, artistBio: e.target.value })} /></div>
                             <div><label style={labelStyle}>Description</label><textarea style={{ ...inputStyle, minHeight: '80px' }} value={concertForm.description} onChange={e => setConcertForm({ ...concertForm, description: e.target.value })} /></div>
@@ -2530,12 +2583,35 @@ const SimpleAdminDashboard = () => {
                                 <div><label style={labelStyle}>Sponsors (Name | Logo URL per line)</label><textarea style={{ ...inputStyle, minHeight: '60px' }} value={concertForm.sponsors} onChange={e => setConcertForm({ ...concertForm, sponsors: e.target.value })} placeholder='Brand | http://logo.url' /></div>
                             </div>
 
-                            <button onClick={() => {
-                                const finalForm = { ...concertForm };
-                                if (!finalForm.bannerImage) finalForm.bannerImage = getRandomImage('Concert');
-                                if (!finalForm.thumbnail) finalForm.thumbnail = getRandomImage('Concert');
-                                handleConcertSubmit(finalForm);
-                            }} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px', marginTop: '20px' }}>{editingConcert ? 'Save All Changes' : 'Create Concert'}</button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '20px', background: '#F1F5F9', padding: '12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+                                <input
+                                    type="checkbox"
+                                    id="concertPolicy"
+                                    checked={policyAccepted}
+                                    onChange={e => setPolicyAccepted(e.target.checked)}
+                                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                                />
+                                <label htmlFor="concertPolicy" style={{ fontSize: '0.8rem', fontWeight: '700', color: '#475569', cursor: 'pointer' }}>
+                                    I acknowledge that all event details are accurate and adhere to corporate guidelines. <span style={{ color: '#EF4444' }}>*</span>
+                                </label>
+                            </div>
+
+                            <button
+                                disabled={!policyAccepted}
+                                onClick={() => {
+                                    handleConcertSubmit(concertForm);
+                                }}
+                                style={{
+                                    ...layoutStyles.actionBtnPrimary,
+                                    padding: '15px',
+                                    marginTop: '10px',
+                                    opacity: policyAccepted ? 1 : 0.6,
+                                    cursor: policyAccepted ? 'pointer' : 'not-allowed',
+                                    background: policyAccepted ? 'linear-gradient(135deg, #1D3557, #457B9D)' : '#94A3B8'
+                                }}
+                            >
+                                {editingConcert ? 'Save All Changes' : 'Create Concert'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2616,9 +2692,7 @@ const SimpleAdminDashboard = () => {
                             <div><label style={labelStyle}>FAQs — question | answer (one per line)</label><textarea style={{ ...inputStyle, minHeight: '70px' }} value={festivalForm.faqs} onChange={e => setFestivalForm({ ...festivalForm, faqs: e.target.value })} placeholder={'Is it pet friendly? | No\nIs parking available? | Yes, free parking'} /></div>
 
                             <button onClick={() => {
-                                const finalForm = { ...festivalForm };
-                                if (!finalForm.image) finalForm.image = getRandomImage('Festival');
-                                handleFestivalSubmit(finalForm);
+                                handleFestivalSubmit(festivalForm);
                             }} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px', marginTop: '20px' }}>{editingFestival ? 'Save All Changes' : 'Create Festival'}</button>
                         </div>
                     </div>
@@ -2706,7 +2780,6 @@ const SimpleAdminDashboard = () => {
                             </div>
                             <button onClick={() => {
                                 const finalForm = { ...tournamentForm };
-                                if (!finalForm.image) finalForm.image = getRandomImage('Wedding'); // Default to wedding-style sports image
                                 handleTournamentSubmit(finalForm);
                             }} style={{ ...layoutStyles.actionBtnPrimary, padding: '15px' }}>{editingTournament ? 'Save Changes' : 'Create Tournament'}</button>
                         </div>
@@ -2723,7 +2796,7 @@ const SimpleAdminDashboard = () => {
                         </div>
                         <div style={{ ...layoutStyles.modalBody, display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <div>
-                                <label style={labelStyle}>Ceremony Name (e.g., Sangeet, Mehendi)</label>
+                                <label style={labelStyle}>Ceremony Name</label>
                                 <input style={inputStyle} value={weddingEventForm.name} onChange={e => setWeddingEventForm({ ...weddingEventForm, name: e.target.value })} placeholder="Enter ceremony name..." />
                             </div>
                             <div>

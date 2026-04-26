@@ -19,14 +19,14 @@ const PerformersPage = () => {
         return location.state;
       }
       const saved = localStorage.getItem('ongoing_booking');
-      return saved ? JSON.parse(saved) : {};
+      return saved ? (JSON.parse(saved) || {}) : {};
     } catch (e) {
       console.error("State recovery failed:", e);
       return {};
     }
   };
 
-  const currentState = getInitialState();
+  const currentState = getInitialState() || {};
   const eventData = currentState.eventData || {};
   const weddingDetails = eventData.wedding_details || {};
   const selectedEvents = weddingDetails.selectedEvents || [];
@@ -38,7 +38,7 @@ const PerformersPage = () => {
       setLoading(true);
       try {
         const res = await API.get('/performers/');
-        setPerfList(res.data || []);
+        setPerfList(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Error fetching performers:", err);
         setPerfList([]);
@@ -49,8 +49,8 @@ const PerformersPage = () => {
     fetchData();
   }, []);
 
-  const singersList = perfList.filter(p => p.category === 'Singer');
-  const otherPerformers = perfList.filter(p => p.category !== 'Singer');
+  // Dynamically group performers by their category
+  const categories = [...new Set(perfList.map(p => p.category || 'Other Performers'))];
 
   const handleNext = (overridePerformer) => {
     const activePerformer = overridePerformer || selectedPerformer;
@@ -70,10 +70,10 @@ const PerformersPage = () => {
 
   const renderCard = (p) => (
     <div key={p.id} style={{ borderRadius: 15, overflow: 'hidden', border: selectedPerformer?.id === p.id ? '3px solid #C4A059' : '1px solid #eee', background: '#fff', boxShadow: '0 10px 20px rgba(0,0,0,0.05)', transition: 'all 0.3s ease' }}>
-      <img src={p.image} alt={p.name} onClick={() => setSelectedPerformer(p)} style={{ width: '100%', height: 180, objectFit: 'cover', cursor: 'pointer' }} />
+      <img src={p.image} alt={p.name} onClick={() => setSelectedPerformer(p)} style={{ width: '100%', height: 220, objectFit: 'cover', cursor: 'pointer' }} />
       <div style={{ padding: 20 }}>
         <div style={{ fontWeight: 800, fontSize: '1.2rem', color: '#333' }}>{p.name}</div>
-        <p style={{ color: '#888', fontSize: '0.9rem', margin: '10px 0' }}>Perfect for wedding ceremonies, sangeet nights, and receptions.</p>
+        <p style={{ color: '#888', fontSize: '0.9rem', margin: '10px 0' }}>{p.description || 'Perfect for any celebration.'}</p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 15 }}>
           <span style={{ fontWeight: 900, fontSize: '1.1rem', color: '#111' }}>₹{parseFloat(p.price || 0).toLocaleString('en-IN')}</span>
           <button onClick={() => handleNext(p)} style={{ padding: '10px 20px', background: '#C4A059', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 600 }}>Select</button>
@@ -129,23 +129,20 @@ const PerformersPage = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 40 }}>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
-              {singersList.length > 0 && (
-                <section>
-                  <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif' }}>Featured Singers</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-                    {singersList.map(renderCard)}
-                  </div>
-                </section>
-              )}
-
-              {otherPerformers.length > 0 && (
-                <section>
-                  <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif' }}>Curated Performers</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
-                    {otherPerformers.map(renderCard)}
-                  </div>
-                </section>
-              )}
+              {categories.map(cat => {
+                const categoryPerformers = perfList.filter(p => (p.category || 'Other Performers') === cat);
+                if (categoryPerformers.length === 0) return null;
+                return (
+                  <section key={cat}>
+                    <h3 style={{ fontSize: '1.5rem', marginBottom: '25px', fontFamily: 'serif', textTransform: 'capitalize' }}>
+                      {cat}
+                    </h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+                      {categoryPerformers.map(renderCard)}
+                    </div>
+                  </section>
+                );
+              })}
 
               {perfList.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '100px', background: '#F9F4E8', borderRadius: 20 }}>

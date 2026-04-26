@@ -18,27 +18,52 @@ const DecorationPage = () => {
         return location.state;
       }
       const saved = localStorage.getItem('ongoing_booking');
-      return saved ? JSON.parse(saved) : {};
+      return saved ? (JSON.parse(saved) || {}) : {};
     } catch (e) {
       console.error("State recovery failed:", e);
       return {};
     }
   };
 
-  const currentState = getInitialState();
+  const currentState = getInitialState() || {};
   const { eventData = {} } = currentState;
 
   // ROBUST EXTRACTION
   const weddingDetails = eventData.wedding_details || {};
   const eventsRequired = weddingDetails.eventsRequired || eventData.eventsRequired || {};
   const rawEvents = weddingDetails.selectedEventTypes || [];
-  const detectedEvents = Object.keys(eventsRequired).filter(key => eventsRequired[key] === true);
 
-  const selectedEventTypes = (detectedEvents.length > 0 ? detectedEvents : rawEvents.map(e => (typeof e === 'string' ? e.split(' ')[0] : e?.name))).filter(Boolean);
+  // HELPER: Extract core ceremony name (e.g. "Engagement" from "Engagement - Forever Begins")
+  const cleanCeremony = (e) => {
+    if (!e) return "";
+    const name = typeof e === 'string' ? e : (e.name || "");
+    // Split by any dash (en-dash, em-dash, hyphen) or parenthesis or "Ceremony" 
+    const cleaned = name.split(/[-–—(]/)[0].split(/ceremony/i)[0].trim();
+    return cleaned;
+  };
 
   const [eventSelections, setEventSelections] = useState(currentState.selectedStyles || {});
-
   const [ceremonies, setCeremonies] = useState([]);
+
+  // DYNAMICALLY CALCULATE SELECTED EVENTS
+  // We filter against the actual ceremonies list to purge old/legacy data from localStorage
+  const availableNames = ceremonies.map(c => c.name);
+  
+  const validatedDetected = Object.keys(eventsRequired)
+    .filter(key => eventsRequired[key] === true)
+    .filter(key => availableNames.includes(key));
+
+  const seenCore = new Set();
+  const sourceList = validatedDetected.length > 0 ? validatedDetected : rawEvents;
+
+  const selectedEventTypes = sourceList
+    .filter(name => {
+      const core = cleanCeremony(name);
+      if (seenCore.has(core)) return false;
+      seenCore.add(core);
+      return true;
+    })
+    .filter(Boolean);
 
   useEffect(() => {
     const fetchDecorData = async () => {
@@ -48,8 +73,8 @@ const DecorationPage = () => {
           API.get('/decorations/'),
           API.get('/wedding-events/')
         ]);
-        setDecorStyles(decorRes.data || []);
-        setCeremonies((ceremonyRes.data || []).filter(c => c.is_visible));
+        setDecorStyles(Array.isArray(decorRes.data) ? decorRes.data : []);
+        setCeremonies(Array.isArray(ceremonyRes.data) ? ceremonyRes.data.filter(c => c.is_visible) : []);
       } catch (err) {
         console.error("Error fetching data:", err);
         setDecorStyles([]);
@@ -85,28 +110,35 @@ const DecorationPage = () => {
 
   const getCategoryFromType = (type) => {
     if (!type) return 'Wedding Ceremony';
+    const core = cleanCeremony(type);
     
     // Check if the ceremony exists in our fetched list and get its exact name
     const foundCeremony = ceremonies.find(c => c.name.toLowerCase() === type.toLowerCase());
     const effectiveName = foundCeremony ? foundCeremony.name : type;
 
-    // Decoration categories in DB are often saved as "Name Ceremony"
-    const exactMatch = decorStyles.find(d => d.category && d.category.toLowerCase() === effectiveName.toLowerCase());
+    // Try matching with full name first, then core name
+    const exactMatch = decorStyles.find(d => d.category && (
+      d.category.toLowerCase() === effectiveName.toLowerCase() ||
+      d.category.toLowerCase() === core.toLowerCase()
+    ));
     if (exactMatch) return exactMatch.category;
 
-    const ceremonyMatch = decorStyles.find(d => d.category && d.category.toLowerCase() === `${effectiveName.toLowerCase()} ceremony`);
+    const ceremonyMatch = decorStyles.find(d => d.category && (
+      d.category.toLowerCase() === `${effectiveName.toLowerCase()} ceremony` ||
+      d.category.toLowerCase() === `${core.toLowerCase()} ceremony`
+    ));
     if (ceremonyMatch) return ceremonyMatch.category;
 
-    // Special case for Sangeet Night/Gala Reception if they are in the DB that way
-    const specialMatch = decorStyles.find(d => d.category && (
-      d.category.toLowerCase() === 'sangeet night' || 
-      d.category.toLowerCase() === 'gala reception' ||
-      d.category.toLowerCase() === 'grand wedding'
-    ) && d.category.toLowerCase().includes(effectiveName.toLowerCase()));
+    // Special cases
+    const specialNames = ['sangeet night', 'gala reception', 'grand wedding', 'haldi', 'mehndi'];
+    const specialMatch = decorStyles.find(d => d.category && 
+      specialNames.some(sn => d.category.toLowerCase().includes(sn)) && 
+      (d.category.toLowerCase().includes(core.toLowerCase()))
+    );
     
     if (specialMatch) return specialMatch.category;
 
-    return `${effectiveName} Ceremony`;
+    return `${core} Ceremony`;
   };
 
   return (
@@ -162,20 +194,25 @@ const DecorationPage = () => {
           <div style={{ textAlign: 'center', padding: '50px', fontSize: '1.5rem', color: '#666' }}>🌸 Spreading Petals & Themes...</div>
         ) : (
           selectedEventTypes.length > 0 ? selectedEventTypes.map(type => {
+            const coreName = cleanCeremony(type);
             const categoryName = getCategoryFromType(type);
 
-            // Filter from the dynamic decorStyles
-            const options = decorStyles.filter(s =>
-              s.category === categoryName ||
-              (s.category && type && s.category.toLowerCase().includes(type.toLowerCase()))
-            );
+            // Filter from the dynamic decorStyles using the core name
+            const options = decorStyles.filter(s => {
+              if (!s.category) return false;
+              const catLower = s.category.toLowerCase();
+              const coreLower = coreName.toLowerCase();
+              return catLower === categoryName.toLowerCase() || 
+                     catLower.includes(coreLower) || 
+                     coreLower.includes(catLower);
+            });
             const currentSelection = eventSelections[type];
 
             return (
               <section key={type} style={{ marginBottom: 100, borderBottom: '1px solid #f0f0f0', paddingBottom: 60 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 15 }}>
-                    <h2 style={{ fontSize: '2.8rem', fontFamily: 'serif', margin: 0 }}>{type} Ceremony</h2>
+                    <h2 style={{ fontSize: '2.8rem', fontFamily: 'serif', margin: 0 }}>{type}</h2>
                     {currentSelection && !currentSelection.skipped && <span style={{ background: '#10B981', color: '#fff', padding: '5px 15px', borderRadius: 50, fontSize: '0.7rem', fontWeight: 800 }}>✓ SELECTED</span>}
                   </div>
                   <div

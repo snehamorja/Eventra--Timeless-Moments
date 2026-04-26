@@ -35,9 +35,7 @@ const BookingForm = () => {
 
         preferredTime: basicDetails.preferredTime || '',
         numberOfDays: basicDetails.numberOfDays || '',
-        eventsRequired: basicDetails.eventsRequired || {
-            Mehendi: false, Sangeet: false, Haldi: false, Wedding: false
-        },
+        eventsRequired: basicDetails.eventsRequired || {},
 
         venueName: basicDetails.venueName || '',
         venueType: basicDetails.venueType || '',
@@ -344,11 +342,13 @@ const BookingForm = () => {
                 {/* 5. ADDITIONAL SERVICES (Mapped to our Events) */}
                 <h2 style={styles.sectionHeader}>ADDITIONAL SERVICES</h2>
                 <div style={{ marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                    {Object.keys(form.eventsRequired).map(event => (
+                    {Object.keys(form.eventsRequired).length > 0 ? Object.keys(form.eventsRequired).map(event => (
                         <label key={event} style={styles.checkboxItem}>
                             <input type="checkbox" checked={form.eventsRequired[event]} onChange={() => handleCheckboxChange('eventsRequired', event)} /> {event}
                         </label>
-                    ))}
+                    )) : (
+                        <div style={{ color: '#888', fontSize: '0.9rem' }}>No additional ceremonies selected in basic details.</div>
+                    )}
                 </div>
 
                 {/* 6. BUDGET INFORMATION */}

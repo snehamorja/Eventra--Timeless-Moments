@@ -58,20 +58,29 @@ const EventSelectionPage = () => {
                 let ceremonies = (res.data || []).filter(c => c.is_visible);
 
                 if (category === 'Weddings') {
+                    // CLEAN & DEDUPLICATE
+                    const cleanName = (n) => n.split('-')[0].split('(')[0].split('Ceremony')[0].trim();
+                    const seen = new Set();
+                    const uniqueCeremonies = (res.data || []).filter(c => c.is_visible).filter(c => {
+                        const cleaned = cleanName(c.name);
+                        if (seen.has(cleaned)) return false;
+                        seen.add(cleaned);
+                        return true;
+                    });
+
                     if (basicDetails?.eventsRequired) {
                         const required = basicDetails.eventsRequired;
                         const hasSelection = Object.values(required).some(val => val === true);
                         if (hasSelection) {
-                            const filtered = ceremonies.filter(ev => {
-                                // Match by name instead of ID since DB id is numeric
+                            const filtered = uniqueCeremonies.filter(ev => {
                                 return Object.keys(required).some(key => required[key] === true && ev.name.toLowerCase().includes(key.toLowerCase()));
                             });
-                            setEventTypes(filtered.length > 0 ? filtered : ceremonies);
+                            setEventTypes(filtered.length > 0 ? filtered : uniqueCeremonies);
                         } else {
-                            setEventTypes(ceremonies);
+                            setEventTypes(uniqueCeremonies);
                         }
                     } else {
-                        setEventTypes(ceremonies);
+                        setEventTypes(uniqueCeremonies);
                     }
                 } else {
                     setEventTypes(generalEvents);

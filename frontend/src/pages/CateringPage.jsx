@@ -29,10 +29,14 @@ const CateringPage = () => {
   const getInitialState = () => {
     if (location.state && location.state.guestCount) return location.state;
     const saved = localStorage.getItem('ongoing_booking');
-    return saved ? JSON.parse(saved) : {};
+    try {
+      return saved ? (JSON.parse(saved) || {}) : {};
+    } catch (e) {
+      return {};
+    }
   };
 
-  const currentState = getInitialState();
+  const currentState = getInitialState() || {};
   const rawBudget = currentState.totalBudget ||
     currentState.budget_per_plate ||
     (currentState.eventData && currentState.eventData.budget) || 0;

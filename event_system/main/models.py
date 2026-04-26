@@ -202,6 +202,7 @@ class Concert(models.Model):
     genre = models.CharField(max_length=100)
     bannerImage = models.TextField()
     thumbnail = models.TextField()
+    artistImage = models.TextField(blank=True, null=True)
     description = models.TextField()
     highlights = models.JSONField(default=dict, blank=True)
     tickets = models.JSONField(default=list, blank=True)

@@ -669,22 +669,25 @@ const cardBadge = { position: 'absolute', top: '20px', right: '20px', background
 const miniTag = { display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: '700', border: '1px solid transparent' };
 
 const ImageWithFallback = ({ src, style, alt }) => {
-    const [imgSrc, setImgSrc] = useState(src);
+    const [error, setError] = useState(false);
 
-    useEffect(() => {
-        setImgSrc(src);
-    }, [src]);
+    if (!src || error) {
+        return (
+            <div style={{ ...style, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '2rem' }}>🎪</span>
+            </div>
+        );
+    }
 
     return (
         <img
-            src={imgSrc}
+            src={src}
             alt={alt}
             style={style}
-            onError={() => setImgSrc("https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?q=80&w=2070&auto=format&fit=crop")}
+            onError={() => setError(true)}
         />
     );
 };
-
 const sectionTitle = {
     fontSize: '1.5rem',
     fontWeight: '900',

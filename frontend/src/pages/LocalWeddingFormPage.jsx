@@ -72,13 +72,24 @@ const LocalWeddingFormPage = () => {
         try {
             const res = await API.get('/wedding-events/');
             const data = res.data || [];
-            const visible = data.filter(c => c.is_visible);
-            setCeremonies(visible);
+            
+            // CLEAN & DEDUPLICATE: Prevent "Engagement" and "Engagement - Story" from showing twice
+            const cleanName = (n) => n.split('-')[0].split('(')[0].split('Ceremony')[0].trim();
+            
+            const seen = new Set();
+            const uniqueVisible = data.filter(c => c.is_visible).filter(c => {
+                const cleaned = cleanName(c.name);
+                if (seen.has(cleaned)) return false;
+                seen.add(cleaned);
+                return true;
+            });
+
+            setCeremonies(uniqueVisible);
             
             // Sync eventsRequired with new ceremonies (preserve existing selections)
             setForm(prev => {
                 const newEventsRequired = { ...prev.eventsRequired };
-                visible.forEach(c => {
+                uniqueVisible.forEach(c => {
                     if (newEventsRequired[c.name] === undefined) {
                         newEventsRequired[c.name] = false;
                     }
@@ -87,15 +98,7 @@ const LocalWeddingFormPage = () => {
             });
         } catch (err) {
             console.error("Error fetching ceremonies:", err);
-            // Fallback
-            const fallback = ["Mehendi", "Sangeet", "Haldi", "Wedding"];
-            setForm(prev => {
-                const newEventsRequired = { ...prev.eventsRequired };
-                fallback.forEach(f => {
-                    if (newEventsRequired[f] === undefined) newEventsRequired[f] = false;
-                });
-                return { ...prev, eventsRequired: newEventsRequired };
-            });
+            setCeremonies([]);
         } finally {
             setLoading(false);
         }
@@ -560,9 +563,20 @@ const LocalWeddingFormPage = () => {
 
         <h3 style={styles.sectionHeading}>Events Required</h3>
         <div style={styles.checkboxGroup}>
-          {Object.keys(form.eventsRequired).map(event => (
-            <PillCheckbox key={event} label={event} checked={form.eventsRequired[event]} onChange={() => handleCheckboxChange('eventsRequired', event)} />
-          ))}
+          {ceremonies.length > 0 ? (
+            ceremonies.map(event => (
+              <PillCheckbox 
+                key={event.name} 
+                label={event.name} 
+                checked={form.eventsRequired[event.name] || false} 
+                onChange={() => handleCheckboxChange('eventsRequired', event.name)} 
+              />
+            ))
+          ) : (
+            <p style={{ color: '#888', fontSize: '0.9rem', fontStyle: 'italic', width: '100%' }}>
+              No ceremonies currently available.
+            </p>
+          )}
         </div>
 
         {/* --- 3. VENUE DETAILS --- */}

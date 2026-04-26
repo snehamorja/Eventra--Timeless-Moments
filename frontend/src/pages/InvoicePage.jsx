@@ -21,9 +21,13 @@ const InvoicePage = () => {
 
     // Load state from navigation OR localStorage
     const [bookingData, setBookingData] = useState(() => {
-        if (location.state && location.state.selectedMenu) return location.state;
+        if (location.state) return location.state;
         const saved = localStorage.getItem('ongoing_booking');
-        return saved ? JSON.parse(saved) : {};
+        try {
+            return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+            return {};
+        }
     });
 
     // Check if the booking is already paid on mount
@@ -80,9 +84,12 @@ const InvoicePage = () => {
         eventData = {} // Original form data
     } = bookingData;
 
-    // Calculate Grand Totals
-    const performerCost = selectedPerformer ? selectedPerformer.price : 0;
-    const subtotal = totalCateringCost + totalDecorCost + performerCost;
+    // Calculate Grand Totals with numeric safety
+    const safeCateringCost = parseFloat(totalCateringCost) || 0;
+    const safeDecorCost = parseFloat(totalDecorCost) || 0;
+    const performerCost = selectedPerformer ? (parseFloat(selectedPerformer.price) || 0) : 0;
+    
+    const subtotal = safeCateringCost + safeDecorCost + performerCost;
     const gst = subtotal * 0.18;
     const grandTotal = subtotal + gst;
 
@@ -90,8 +97,8 @@ const InvoicePage = () => {
     const advanceAmount = grandTotal / 2;
     const balanceAmount = grandTotal - advanceAmount;
 
-    // Decoration items list
-    const decorationItems = Object.values(selectedStyles);
+    // Decoration items list - safe check
+    const decorationItems = selectedStyles ? Object.values(selectedStyles) : [];
 
     const handleRemoveItem = (type, id) => {
         const newData = { ...bookingData };
@@ -270,11 +277,14 @@ const InvoicePage = () => {
         if (autoAction === 'save_and_pay' && isLoggedIn && !bookingData.id) {
             localStorage.removeItem('pendingAutoAction');
             handleSaveAndPay();
+        } else if (isLoggedIn && !bookingData.id && (selectedMenu || decorationItems.length > 0 || selectedPerformer)) {
+            // Auto-save draft to get an Invoice ID if none exists
+            handleSaveAndPay(true); // true = silent save only
         }
     }, [isLoggedIn, bookingData.id]);
 
-    const handleSaveAndPay = async () => {
-        if (isSaving || isPaid) return;
+    const handleSaveAndPay = async (silentSave = false) => {
+        if (isSaving || (isPaid && !silentSave)) return;
         setIsSaving(true);
         try {
             let currentId = bookingData.id;
@@ -288,7 +298,7 @@ const InvoicePage = () => {
                 const thirtyDaysLater = new Date(today);
                 thirtyDaysLater.setDate(today.getDate() + 30);
 
-                if (new Date(eventDate) < thirtyDaysLater) {
+                if (new Date(eventDate) < thirtyDaysLater && !silentSave) {
                     setCustomAlert({
                         show: true,
                         title: 'DATE TOO SOON',
@@ -305,15 +315,15 @@ const InvoicePage = () => {
                     advance_amount: advanceAmount,
                     balance_amount: balanceAmount,
                     catering_package: selectedMenu ? selectedMenu.name : '',
-                    catering_price: selectedMenu ? selectedMenu.price : 0,
-                    decoration_name: Object.values(selectedStyles).map(s => s.name).join(', '),
-                    decoration_price: totalDecorCost,
+                    catering_price: selectedMenu ? (selectedMenu.price_per_plate || selectedMenu.price || 0) : 0,
+                    decoration_name: Object.values(selectedStyles || {}).map(s => s.name).join(', '),
+                    decoration_price: safeDecorCost,
                     performer_name: selectedPerformer ? selectedPerformer.name : '',
-                    performer_price: selectedPerformer ? selectedPerformer.price : 0,
+                    performer_price: performerCost,
                     wedding_details: {
                         ...(eventData.wedding_details || {}),
-                        guestCount,
-                        selectedStyles,
+                        guestCount: parseInt(guestCount) || 1,
+                        selectedStyles: selectedStyles || {},
                         performer: selectedPerformer
                     }
                 };
@@ -327,17 +337,21 @@ const InvoicePage = () => {
                 console.log("Booking saved with ID:", currentId);
             }
 
-            // 2. Trigger Payment Flow Immediately
-            await handlePayment(currentId);
+            // 2. Trigger Payment Flow (if not silent)
+            if (!silentSave) {
+                await handlePayment(currentId);
+            }
 
         } catch (error) {
             console.error("Submission Failed:", error);
-            setCustomAlert({
-                show: true,
-                title: 'ERROR',
-                message: "We couldn't process your request: " + sanitizeError(error),
-                mode: 'notice'
-            });
+            if (!silentSave) {
+                setCustomAlert({
+                    show: true,
+                    title: 'ERROR',
+                    message: "We couldn't process your request: " + sanitizeError(error),
+                    mode: 'notice'
+                });
+            }
         } finally {
             setIsSaving(false);
         }
@@ -458,8 +472,8 @@ const InvoicePage = () => {
                                 <tr>
                                     <td style={styles.td}>Catering Service - {selectedMenu.name}</td>
                                     <td style={styles.td}>{guestCount}</td>
-                                    <td style={styles.td}>₹{selectedMenu.price.toLocaleString()}</td>
-                                    <td style={styles.td}>₹{totalCateringCost.toLocaleString()}</td>
+                                    <td style={styles.td}>₹{(parseFloat(selectedMenu.price_per_plate || selectedMenu.price) || 0).toLocaleString()}</td>
+                                    <td style={styles.td}>₹{safeCateringCost.toLocaleString()}</td>
                                     {!isPaid && (
                                         <td style={styles.td}>
                                             <TrashIcon
@@ -474,8 +488,8 @@ const InvoicePage = () => {
                                 <tr key={item.id}>
                                     <td style={styles.td}>Venue Decoration - {item.name}</td>
                                     <td style={styles.td}>1</td>
-                                    <td style={styles.td}>₹{item.price.toLocaleString()}</td>
-                                    <td style={styles.td}>₹{item.price.toLocaleString()}</td>
+                                    <td style={styles.td}>₹{(parseFloat(item.price) || 0).toLocaleString()}</td>
+                                    <td style={styles.td}>₹{(parseFloat(item.price) || 0).toLocaleString()}</td>
                                     {!isPaid && (
                                         <td style={styles.td}>
                                             <TrashIcon
@@ -490,8 +504,8 @@ const InvoicePage = () => {
                                 <tr>
                                     <td style={styles.td}>Entertainment - {selectedPerformer.name}</td>
                                     <td style={styles.td}>1</td>
-                                    <td style={styles.td}>₹{selectedPerformer.price.toLocaleString()}</td>
-                                    <td style={styles.td}>₹{selectedPerformer.price.toLocaleString()}</td>
+                                    <td style={styles.td}>₹{(parseFloat(selectedPerformer.price) || 0).toLocaleString()}</td>
+                                    <td style={styles.td}>₹{(parseFloat(selectedPerformer.price) || 0).toLocaleString()}</td>
                                     {!isPaid && (
                                         <td style={styles.td}>
                                             <TrashIcon

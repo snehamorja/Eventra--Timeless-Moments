@@ -393,8 +393,12 @@ const SportsEventsPage = () => {
                                     }}
                                 >
                                     <div style={{ display: 'flex', gap: '15px' }}>
-                                        <div style={{ width: '70px', height: '70px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0 }}>
-                                            <img src={t.image || "https://img.freepik.com/free-vector/sport-equipment-concept_1284-13034.jpg?semt=ais_hybrid&w=740&q=80"} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                        <div style={{ width: '70px', height: '70px', borderRadius: '12px', overflow: 'hidden', flexShrink: 0, background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            {t.image ? (
+                                                <img src={t.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
+                                            ) : (
+                                                <span style={{ fontSize: '1.5rem' }}>🏆</span>
+                                            )}
                                         </div>
                                         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                                             <div style={{ fontSize: '0.65rem', fontWeight: '900', color: '#E63946', letterSpacing: '1px' }}>{t.sport.toUpperCase()}</div>
@@ -418,8 +422,14 @@ const SportsEventsPage = () => {
                     {selectedTournament ? (
                         <div style={{ animation: 'fadeIn 0.5s ease' }}>
                             {/* HERO SECTION FOR TOURNAMENT */}
-                            <div style={{ position: 'relative', height: '45vh', overflow: 'hidden' }}>
-                                <img src={selectedTournament.image || "https://img.freepik.com/free-vector/sport-equipment-concept_1284-13034.jpg?semt=ais_hybrid&w=740&q=80"} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.3 }} alt="" />
+                            <div style={{ position: 'relative', height: '45vh', overflow: 'hidden', background: '#1D3557' }}>
+                                {selectedTournament.image ? (
+                                    <img src={selectedTournament.image} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.3 }} alt="" />
+                                ) : (
+                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.2 }}>
+                                        <span style={{ fontSize: '10rem' }}>🏅</span>
+                                    </div>
+                                )}
                                 <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #fff 10%, transparent 100%)' }} />
                                 <div style={{ position: 'absolute', bottom: '40px', left: '40px' }}>
                                     <div style={{ background: '#E63946', color: '#fff', padding: '6px 20px', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 'bold', display: 'inline-block', marginBottom: '15px' }}>{selectedTournament.sport.toUpperCase()} MAJOR</div>

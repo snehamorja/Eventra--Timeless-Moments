@@ -352,13 +352,16 @@ class BlogListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        is_admin = (getattr(user, 'role', '') or '').upper() == 'ADMIN' or user.is_staff or user.is_superuser
+        is_admin = not user.is_anonymous and ((getattr(user, 'role', '') or '').upper() == 'ADMIN' or user.is_staff or user.is_superuser)
+        show_all = self.request.query_params.get('all', '').lower() == 'true'
         show_deleted = self.request.query_params.get('deleted', '').lower() == 'true'
 
         if is_admin:
             if show_deleted:
                 return Blog.objects.filter(is_deleted=True).order_by('-created_at')
-            return Blog.objects.filter(is_deleted=False).order_by('-created_at')
+            if show_all:
+                return Blog.objects.filter(is_deleted=False).order_by('-created_at')
+        
         return Blog.objects.filter(is_published=True, is_deleted=False).order_by('-created_at')
 
 class BlogDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -761,15 +764,17 @@ class GalleryListCreateView(generics.ListCreateAPIView):
     
     def get_queryset(self):
         user = self.request.user
-        is_admin = (getattr(user, 'role', '') or '').upper() == 'ADMIN' or user.is_staff or user.is_superuser
+        is_admin = not user.is_anonymous and ((getattr(user, 'role', '') or '').upper() == 'ADMIN' or user.is_staff or user.is_superuser)
+        show_all = self.request.query_params.get('all', '').lower() == 'true'
         show_deleted = self.request.query_params.get('deleted', '').lower() == 'true'
         
         if is_admin:
             if show_deleted:
                 return Gallery.objects.filter(is_deleted=True).order_by('-created_at')
-            return Gallery.objects.filter(is_deleted=False).order_by('-created_at')
+            if show_all:
+                return Gallery.objects.filter(is_deleted=False).order_by('-created_at')
         
-        # Regular users only see published and NOT deleted items
+        # Regular users (and admins on public pages) only see published and NOT deleted items
         return Gallery.objects.filter(is_published=True, is_deleted=False).order_by('-created_at')
 
     def get_permissions(self):
